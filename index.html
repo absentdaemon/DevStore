@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="DevStore — Open application marketplace for Windows and Android. Discover curated games, tools, and productivity applications.">
+  <title>DevStore — Curated App Marketplace</title>
+
+  <!-- Google Fonts: Inter & Roboto -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- DevStore Stylesheets -->
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <!-- Google Play Style Top Header Navigation -->
+  <header class="store-header" role="banner">
+    <div class="header-inner container">
+      
+      <!-- Left: Logo & Category Tabs -->
+      <div class="header-left">
+        <!-- Brand & Wordmark -->
+        <a href="index.html" class="brand-wrapper" id="brand-home-link" aria-label="DevStore Homepage">
+          <div class="brand-logo-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <span class="brand-title">DevStore</span>
+        </a>
+
+        <!-- Desktop Navigation Tabs (Directly adjacent to brand logo) -->
+        <nav class="desktop-nav-tabs" aria-label="Primary Categories">
+          <button class="nav-tab active" id="nav-tab-games" onclick="devstore.setCategory('games')">
+            <span>Games</span>
+          </button>
+          <button class="nav-tab" id="nav-tab-apps" onclick="devstore.setCategory('all')">
+            <span>Apps</span>
+          </button>
+          <button class="nav-tab" id="nav-tab-tools" onclick="devstore.setCategory('developer')">
+            <span>Dev Tools</span>
+          </button>
+          <button class="nav-tab" id="nav-tab-utilities" onclick="devstore.setCategory('utilities')">
+            <span>Utilities</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Expandable / Overlay Search Bar -->
+      <div class="search-overlay-bar" id="search-overlay-bar">
+        <div class="search-combobox" id="search-combobox" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="suggestions-listbox">
+          <div class="search-input-wrapper">
+            <button type="button" class="search-icon-btn" id="search-submit-btn" aria-label="Search">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+            <input 
+              type="text" 
+              id="search-input" 
+              class="search-input" 
+              placeholder="Search apps, games & tools..." 
+              autocomplete="off" 
+              spellcheck="false" 
+              aria-label="Search applications in DevStore"
+              aria-autocomplete="list"
+            >
+            <button type="button" class="clear-search-btn" id="clear-search-btn" aria-label="Clear search query">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+            <button type="button" class="search-close-btn" id="search-close-btn" aria-label="Close search">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Autocomplete Dropdown Listbox -->
+          <div class="suggestions-listbox" id="suggestions-listbox" role="listbox" aria-label="Search suggestions"></div>
+        </div>
+      </div>
+
+      <!-- Right Action Controls -->
+      <div class="header-right-actions">
+        <!-- Search Trigger Icon Button -->
+        <button class="header-icon-btn" id="search-toggle-btn" aria-label="Open search">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+
+        <!-- Help Icon Button -->
+        <button class="header-icon-btn" id="help-btn" aria-label="Help & support" onclick="alert('DevStore is an independent application marketplace inspired by Google Play Store. Free and ethical software downloads.')">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </button>
+
+        <!-- User Profile Avatar Button -->
+        <button class="user-avatar-btn" id="user-avatar-btn" aria-label="User Account" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Google Play Style Profile Popover -->
+      <div class="profile-popover" id="profile-popover" role="dialog" aria-modal="false" aria-label="Account details"></div>
+
+    </div>
+
+
+    <!-- Mobile Secondary Category Bar (Visible below header on mobile) -->
+    <div class="mobile-nav-tabs-wrapper">
+      <nav class="mobile-nav-tabs" aria-label="Mobile Categories">
+        <button class="mobile-nav-tab active" id="mnav-games" onclick="devstore.setCategory('games')">
+          <span>Games</span>
+        </button>
+        <button class="mobile-nav-tab" id="mnav-apps" onclick="devstore.setCategory('all')">
+          <span>Apps</span>
+        </button>
+        <button class="mobile-nav-tab" id="mnav-tools" onclick="devstore.setCategory('developer')">
+          <span>Dev Tools</span>
+        </button>
+        <button class="mobile-nav-tab" id="mnav-utilities" onclick="devstore.setCategory('utilities')">
+          <span>Utilities</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Google Play Subheader Device Target Chips Bar -->
+  <div class="device-chips-bar-wrapper">
+    <div class="container device-chips-container">
+      <div class="device-chips-scroll" id="device-chips-scroll">
+        <!-- Active Default: Windows PC -->
+        <button class="device-chip active" id="chip-windows" onclick="devstore.setPlatform('windows')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          <span>Windows PC</span>
+        </button>
+
+        <!-- Vertical Separator Hairline -->
+        <div class="chip-divider" aria-hidden="true"></div>
+
+        <!-- Inactive Target Devices -->
+        <button class="device-chip" id="chip-phone" onclick="devstore.setPlatform('android')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+          <span>Phone</span>
+        </button>
+        <button class="device-chip" id="chip-tablet" onclick="devstore.setPlatform('all')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+          <span>Tablet</span>
+        </button>
+        <button class="device-chip" id="chip-tv" onclick="devstore.setPlatform('all')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+          <span>TV</span>
+        </button>
+        <button class="device-chip" id="chip-desktop" onclick="devstore.setPlatform('windows')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          <span>Desktop</span>
+        </button>
+        <button class="device-chip" id="chip-watch" onclick="devstore.setPlatform('all')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"></circle><polyline points="12 9 12 12 13.5 13.5"></polyline><path d="M16.51 17.35l-.35 3.83a2 2 0 0 1-2 1.82H9.83a2 2 0 0 1-2-1.82l-.35-3.83m.01-10.7l.35-3.83A2 2 0 0 1 9.83 1h4.35a2 2 0 0 1 2 1.82l.35 3.83"></path></svg>
+          <span>Watch</span>
+        </button>
+        <button class="device-chip" id="chip-xr" onclick="devstore.setPlatform('all')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="12" r="3"></circle><circle cx="17" cy="12" r="3"></circle><path d="M10 12h4"></path><path d="M2 12a5 5 0 0 1 5-5h10a5 5 0 0 1 5 5 5 5 0 0 1-5 5H7a5 5 0 0 1-5-5z"></path></svg>
+          <span>XR headset</span>
+        </button>
+      </div>
+
+      <!-- Scroll Overflow Arrow Button -->
+      <button class="chips-arrow-btn" id="chips-arrow-btn" aria-label="Scroll device options" onclick="document.getElementById('device-chips-scroll').scrollBy({left: 200, behavior: 'smooth'})">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Store Layout -->
+  <main class="store-main" id="store-main-viewport">
+    <div class="container main-content-wrapper">
+      <!-- Main Content / Catalog / Search Mount Point -->
+      <div id="main-content"></div>
+
+      <!-- Detail View Mount Point -->
+      <section id="detail-view" class="detail-view" aria-label="Application Details View"></section>
+    </div>
+  </main>
+
+  <!-- Write Review Modal Dialog -->
+  <div class="modal-backdrop" id="review-modal" role="dialog" aria-modal="true" aria-label="Submit Application Review"></div>
+
+  <!-- Download Confirmation Modal Dialog -->
+  <div class="modal-backdrop" id="download-modal" role="dialog" aria-modal="true" aria-label="Download Confirmation"></div>
+
+  <!-- Google Account Style Sign-In Modal Dialog -->
+  <div class="modal-backdrop" id="signin-modal" role="dialog" aria-modal="true" aria-label="Sign in to DevStore"></div>
+
+  <!-- Google Play Style Manage Apps & Device Modal Dialog -->
+  <div class="modal-backdrop" id="manage-apps-modal" role="dialog" aria-modal="true" aria-label="Manage apps and device"></div>
+
+
+  <!-- Google Play Style Footer -->
+  <footer class="store-footer" role="contentinfo">
+    <div class="container footer-content">
+      <div class="footer-links-row">
+        <div class="footer-col">
+          <span class="footer-col-title">DevStore</span>
+          <a href="#about" onclick="alert('DevStore is an independent open-source marketplace project. All applications are verified.')">About DevStore</a>
+          <a href="#play-pass" onclick="alert('DevStore Pass: All developer tools and games are 100% free.')">DevStore Pass</a>
+          <a href="#devices" onclick="alert('Available for Windows PC, Android, and Web.')">Supported Devices</a>
+        </div>
+        <div class="footer-col">
+          <span class="footer-col-title">Developers</span>
+          <a href="#developer-console" onclick="alert('DevStore Console: Submit applications via manifest.')">DevStore Console</a>
+          <a href="#documentation" onclick="alert('Developer Documentation available in SPEC.md.')">Developer Documentation</a>
+          <a href="#package-policy" onclick="alert('Zero telemetry, transparent licensing.')">Package Standards</a>
+        </div>
+        <div class="footer-col">
+          <span class="footer-col-title">Help & Legal</span>
+          <a href="#support" onclick="alert('Customer support and documentation.')">Help Center</a>
+          <a href="#privacy" onclick="alert('Privacy Guarantee: No cookies, no trackers.')">Privacy Policy</a>
+          <a href="#terms" onclick="alert('Distributed under original package licenses.')">Terms of Service</a>
+        </div>
+      </div>
+      <div class="footer-bottom-bar">
+        <span>DevStore &bull; Independent application marketplace recreation</span>
+        <span>All trademarks belong to their respective owners</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Module Bootstrap -->
+  <script type="module">
+    import { DevStoreApp } from './js/app.js';
+    window.devstore = new DevStoreApp();
+    window.devstore.init();
+  </script>
+</body>
+</html>

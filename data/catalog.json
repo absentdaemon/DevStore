@@ -1,0 +1,319 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-10-22T10:00:00Z",
+  "categories": [
+    { "id": "all", "label": "All Apps", "icon": "grid_view" },
+    { "id": "utilities", "label": "Utilities", "icon": "build" },
+    { "id": "productivity", "label": "Productivity", "icon": "check_circle" },
+    { "id": "games", "label": "Games", "icon": "sports_esports" },
+    { "id": "developer", "label": "Developer Tools", "icon": "terminal" },
+    { "id": "media", "label": "Media & Audio", "icon": "headphones" }
+  ],
+  "applications": [
+    {
+      "id": "org.devstore.chess",
+      "name": "Retro Chess Arena",
+      "tagline": "Master tactics against intelligent chess bots and offline puzzles",
+      "developer": "Studio 64 Games",
+      "category": "games",
+      "rating": 4.8,
+      "reviewCount": 1420,
+      "iconBg": "#1e293b",
+      "iconColor": "#38bdf8",
+      "iconGlyph": "chess",
+      "version": "1.4.2",
+      "size": "18.4 MB",
+      "platforms": ["windows", "android", "web"],
+      "license": "MIT Open Source",
+      "description": "Retro Chess Arena is an elegant, retro-styled chess client designed for offline and casual multiplayer tactical training. Featuring configurable neural-heuristic AI opponents, custom opening explorers, and over 1,500 grandmaster puzzle scenarios. Built with clean standard graphics and low latency input for competitive chess enthusiasts.",
+      "features": [
+        "Play against 8 difficulty levels of tactical AI",
+        "Over 1,500 offline tactical puzzles with solution hints",
+        "PGN file import/export and move notation logs",
+        "Full keyboard and touch-first board navigation"
+      ],
+      "screenshots": [
+        { "title": "Main Board View", "caption": "Classic wooden board with dynamic legal move indicators and capture tray" },
+        { "title": "Tactics Trainer", "caption": "Daily tactical puzzle scenarios with evaluation bar and hint mode" },
+        { "title": "Engine Analysis", "caption": "Deep heuristic evaluation and opening book statistics" }
+      ],
+      "permissions": [
+        { "name": "Storage (Read/Write)", "detail": "Required only for importing and exporting PGN game files" }
+      ],
+      "reviews": [
+        { "author": "Magnus K.", "rating": 5, "date": "2026-10-18", "comment": "Outstanding responsive board feel. The offline puzzle mode is top notch!" },
+        { "author": "Elena R.", "rating": 5, "date": "2026-10-14", "comment": "Crisp visuals, works flawlessly on both my Windows desktop and Android tablet." }
+      ],
+      "downloads": {
+        "android": "downloads/retro-chess-arena-1.4.2.apk",
+        "windows": "downloads/retro-chess-arena-1.4.2-win-x64.zip",
+        "web": "https://chess.devstore.org"
+      }
+    },
+    {
+      "id": "org.devstore.calculator",
+      "name": "Aether Calculator",
+      "tagline": "Precision scientific calculations, graphing and unit conversions",
+      "developer": "Nova Labs",
+      "category": "utilities",
+      "rating": 4.9,
+      "reviewCount": 3280,
+      "iconBg": "#0f172a",
+      "iconColor": "#10b981",
+      "iconGlyph": "calculate",
+      "version": "2.1.0",
+      "size": "4.2 MB",
+      "platforms": ["windows", "android", "web"],
+      "license": "MIT Open Source",
+      "description": "Aether Calculator is a modern, distraction-free scientific and programmer calculator. It supports high-precision decimal operations, real-time formula evaluation, dynamic unit conversions across 30+ physical domains, and instant memory recall. Designed with zero telemetry and instant startup time.",
+      "features": [
+        "Full scientific, trigonometry, and logarithmic functions",
+        "Programmer mode with binary, octal, decimal, and hex conversions",
+        "Comprehensive unit converter for currency, weight, length, and velocity",
+        "Session calculation history with one-tap expression recall"
+      ],
+      "screenshots": [
+        { "title": "Scientific Keypad", "caption": "Full scientific layout with matrix math and complex number evaluation" },
+        { "title": "Unit Converter", "caption": "Instant live conversions across physical and digital units" },
+        { "title": "History Panel", "caption": "Scrollable timestamped calculation archive with export" }
+      ],
+      "permissions": [
+        { "name": "None", "detail": "Operates entirely offline without device permissions" }
+      ],
+      "reviews": [
+        { "author": "David W.", "rating": 5, "date": "2026-10-19", "comment": "The cleanest calculator app I have ever used. Fast, zero ads, no bloat." },
+        { "author": "Priya S.", "rating": 5, "date": "2026-10-10", "comment": "Programmer mode is an absolute lifesaver for binary/hex bit-shifting." }
+      ],
+      "downloads": {
+        "android": "downloads/aether-calculator-2.1.0.apk",
+        "windows": "downloads/aether-calculator-2.1.0-win-x64.zip",
+        "web": "https://calc.devstore.org"
+      }
+    },
+    {
+      "id": "org.devstore.chronos",
+      "name": "Chronos Task Manager",
+      "tagline": "Streamline workflows with agile boards, timers, and offline privacy",
+      "developer": "Aura Systems",
+      "category": "productivity",
+      "rating": 4.7,
+      "reviewCount": 890,
+      "iconBg": "#1e1b4b",
+      "iconColor": "#818cf8",
+      "iconGlyph": "task_alt",
+      "version": "3.0.1",
+      "size": "12.8 MB",
+      "platforms": ["windows", "android", "web"],
+      "license": "Apache 2.0",
+      "description": "Chronos provides a lightweight, local-first productivity workspace combining visual Kanban boards, Pomodoro sprint timers, and markdown task notes. Your data stays on your local filesystem without requiring cloud sign-ins.",
+      "features": [
+        "Customizable multi-column Kanban boards with drag-and-drop",
+        "Integrated Pomodoro timer with audio cues and break intervals",
+        "Markdown-enabled checklists and sub-task nesting",
+        "Local JSON backups and automated daily snapshots"
+      ],
+      "screenshots": [
+        { "title": "Kanban Workspace", "caption": "Visual columns for To Do, In Progress, Review, and Done" },
+        { "title": "Focus Timer", "caption": "Integrated 25-minute Pomodoro timer with ambient sounds" },
+        { "title": "Sprint Analytics", "caption": "Weekly task completion metrics and productivity streaks" }
+      ],
+      "permissions": [
+        { "name": "Notifications", "detail": "Used solely to alert you when a focus timer finishes" }
+      ],
+      "reviews": [
+        { "author": "Liam T.", "rating": 5, "date": "2026-10-17", "comment": "Local-first productivity is the future. Chronos is fast and reliable." }
+      ],
+      "downloads": {
+        "android": "downloads/chronos-task-3.0.1.apk",
+        "windows": "downloads/chronos-task-3.0.1-win-x64.zip",
+        "web": "https://chronos.devstore.org"
+      }
+    },
+    {
+      "id": "org.devstore.mdcanvas",
+      "name": "Markdown Canvas",
+      "tagline": "Distraction-free technical writing and instant diagram rendering",
+      "developer": "Syntax Studio",
+      "category": "productivity",
+      "rating": 4.6,
+      "reviewCount": 620,
+      "iconBg": "#18181b",
+      "iconColor": "#f59e0b",
+      "iconGlyph": "edit_note",
+      "version": "1.8.0",
+      "size": "9.5 MB",
+      "platforms": ["windows", "web"],
+      "license": "MIT Open Source",
+      "description": "Markdown Canvas is a focused editor built for software engineers and documentation writers. Featuring live split-pane rendering, full Mermaid.js and KaTeX math support, code block copy shortcuts, and one-click PDF/HTML export.",
+      "features": [
+        "Live dual-pane markdown rendering with synchronized scrolling",
+        "Full support for Mermaid diagrams, MathJax formulas, and tables",
+        "Customizable dark, light, and solarized code syntax themes",
+        "Zero-telemetry local file system auto-save"
+      ],
+      "screenshots": [
+        { "title": "Dual Pane Editor", "caption": "Clean monospace editor alongside live rendered HTML preview" },
+        { "title": "Diagram Rendering", "caption": "Instant visualization of flowcharts, sequence diagrams, and equations" }
+      ],
+      "permissions": [
+        { "name": "File System", "detail": "Required to open and save local .md and .markdown documents" }
+      ],
+      "reviews": [
+        { "author": "Sara M.", "rating": 5, "date": "2026-10-12", "comment": "Replaced three bloated editors with this. It renders Mermaid diagrams instantly." }
+      ],
+      "downloads": {
+        "windows": "downloads/markdown-canvas-1.8.0-win-x64.zip",
+        "web": "https://mdcanvas.devstore.org"
+      }
+    },
+    {
+      "id": "org.devstore.weather",
+      "name": "Weather Pulse",
+      "tagline": "Real-time atmospheric telemetry, radar maps, and accurate forecasts",
+      "developer": "Atmosphere Project",
+      "category": "utilities",
+      "rating": 4.5,
+      "reviewCount": 2100,
+      "iconBg": "#082f49",
+      "iconColor": "#38bdf8",
+      "iconGlyph": "wb_sunny",
+      "version": "2.4.5",
+      "size": "8.1 MB",
+      "platforms": ["windows", "android"],
+      "license": "MIT Open Source",
+      "description": "Weather Pulse delivers hyper-local meteorological forecasts using open data sources. Features hourly temperature timelines, precipitation barometers, wind vectors, UV index indicators, and animated satellite radar overlays.",
+      "features": [
+        "7-day hourly temperature, humidity, and barometric trends",
+        "Interactive Doppler radar and cloud coverage maps",
+        "Air Quality Index (AQI) telemetry and pollen warnings",
+        "Custom weather widgets with automatic low-power refreshes"
+      ],
+      "screenshots": [
+        { "title": "Daily Telemetry", "caption": "Hourly forecast curves and precipitation probabilities" },
+        { "title": "Satellite Radar", "caption": "Real-time precipitation doppler radar maps" }
+      ],
+      "permissions": [
+        { "name": "Location (Optional)", "detail": "Used only to determine local weather when requested" }
+      ],
+      "reviews": [
+        { "author": "Carlos G.", "rating": 5, "date": "2026-10-15", "comment": "No intrusive ads, accurate radar, and beautiful clean animations." }
+      ],
+      "downloads": {
+        "android": "downloads/weather-pulse-2.4.5.apk",
+        "windows": "downloads/weather-pulse-2.4.5-win-x64.zip"
+      }
+    },
+    {
+      "id": "org.devstore.audiopulse",
+      "name": "Pixel Pulse Audio Studio",
+      "tagline": "Synthesizer studio, beat sequencing, and live visualizer",
+      "developer": "SoundWave Collective",
+      "category": "media",
+      "rating": 4.8,
+      "reviewCount": 1150,
+      "iconBg": "#3b0764",
+      "iconColor": "#d946ef",
+      "iconGlyph": "equalizer",
+      "version": "1.2.0",
+      "size": "24.6 MB",
+      "platforms": ["windows", "web"],
+      "license": "MIT Open Source",
+      "description": "Pixel Pulse is a creative WebAudio sound studio featuring an 8-track drum sequencer, dual-oscillator polyphonic synthesizer, customizable reverb/delay effects, and real-time audio FFT spectral visualizer.",
+      "features": [
+        "8-channel drum step sequencer with tempo and swing controls",
+        "Polyphonic subtractive synthesizer with ADSR envelopes and filters",
+        "Interactive frequency spectrum analyzer and waveform display",
+        "WAV audio export and MIDI keyboard device support"
+      ],
+      "screenshots": [
+        { "title": "Step Sequencer", "caption": "8-track rhythm grid with velocity controls and sample selection" },
+        { "title": "Synthesizer Rack", "caption": "Oscillator filters, LFO modulation, and delay/reverb bus" }
+      ],
+      "permissions": [
+        { "name": "Microphone (Optional)", "detail": "Required only if recording live vocal samples" }
+      ],
+      "reviews": [
+        { "author": "Jordan K.", "rating": 5, "date": "2026-10-08", "comment": "Remarkably powerful in-browser synth. Audio export is crystal clear." }
+      ],
+      "downloads": {
+        "windows": "downloads/pixel-pulse-audio-1.2.0-win-x64.zip",
+        "web": "https://audiopulse.devstore.org"
+      }
+    },
+    {
+      "id": "org.devstore.terminal",
+      "name": "DevTerm Pro",
+      "tagline": "GPU-accelerated terminal emulator with multi-tab multiplexing",
+      "developer": "Terminal Craft",
+      "category": "developer",
+      "rating": 4.9,
+      "reviewCount": 4500,
+      "iconBg": "#022c22",
+      "iconColor": "#34d399",
+      "iconGlyph": "terminal",
+      "version": "4.0.2",
+      "size": "14.3 MB",
+      "platforms": ["windows", "android"],
+      "license": "GPL-3.0",
+      "description": "DevTerm Pro is a modern, high-performance terminal emulator engineered for developers. Supports custom color themes, ligatures, split-pane multiplexing, SSH session bookmarks, and full UTF-8 Unicode glyph rendering.",
+      "features": [
+        "GPU-accelerated rendering with low input latency",
+        "Split-pane horizontal and vertical terminal multiplexing",
+        "Built-in SSH session organizer with key agent integration",
+        "Customizable powerline themes and font ligature support"
+      ],
+      "screenshots": [
+        { "title": "Multiplexed Terminals", "caption": "Quad split panes running live build scripts and system monitors" },
+        { "title": "Theme Configurator", "caption": "Over 20 built-in dark and high-contrast color palettes" }
+      ],
+      "permissions": [
+        { "name": "Network Access", "detail": "Required for remote SSH connections and terminal sessions" }
+      ],
+      "reviews": [
+        { "author": "Alex N.", "rating": 5, "date": "2026-10-16", "comment": "The fastest terminal on Windows. Split panes work flawlessly." }
+      ],
+      "downloads": {
+        "android": "downloads/devterm-pro-4.0.2.apk",
+        "windows": "downloads/devterm-pro-4.0.2-win-x64.zip"
+      }
+    },
+    {
+      "id": "org.devstore.pixelpaint",
+      "name": "Vector Craft Paint",
+      "tagline": "Vector drawing and raster editing with layer masks",
+      "developer": "Creative Commons Lab",
+      "category": "media",
+      "rating": 4.6,
+      "reviewCount": 980,
+      "iconBg": "#451a03",
+      "iconColor": "#fb923c",
+      "iconGlyph": "palette",
+      "version": "2.0.4",
+      "size": "31.2 MB",
+      "platforms": ["windows", "android", "web"],
+      "license": "MIT Open Source",
+      "description": "Vector Craft is a versatile creative design studio combining vector spline paths with raster brush tools. Perfect for sketching UI mockups, game sprites, icons, and illustrations.",
+      "features": [
+        "Bézier vector pen tool with node editing and snapping",
+        "Non-destructive layer blend modes and opacity masks",
+        "Export to SVG, PNG, WebP, and PDF with resolution scaling",
+        "Stylus pressure sensitivity and palm-rejection support"
+      ],
+      "screenshots": [
+        { "title": "Vector Canvas", "caption": "Precision spline path manipulation and gradient fills" },
+        { "title": "Layer Manager", "caption": "Hierarchical grouping, blend modes, and mask controls" }
+      ],
+      "permissions": [
+        { "name": "Storage Access", "detail": "Required to import images and export artwork files" }
+      ],
+      "reviews": [
+        { "author": "Mia C.", "rating": 5, "date": "2026-10-11", "comment": "Super intuitive UI and the vector export is very clean." }
+      ],
+      "downloads": {
+        "android": "downloads/vector-craft-2.0.4.apk",
+        "windows": "downloads/vector-craft-2.0.4-win-x64.zip",
+        "web": "https://vectorcraft.devstore.org"
+      }
+    }
+  ]
+}
