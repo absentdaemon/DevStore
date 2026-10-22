@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Facet Gradients matching Modern Prism Play -->
+    <linearGradient id="gradTopCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00b4d8"/>
+      <stop offset="100%" stop-color="#0077b6"/>
+    </linearGradient>
+    <linearGradient id="gradMidCyan" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#0096c7"/>
+      <stop offset="100%" stop-color="#0077b6"/>
+    </linearGradient>
+    <linearGradient id="gradCoral" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff477e"/>
+      <stop offset="100%" stop-color="#f72585"/>
+    </linearGradient>
+    <linearGradient id="gradAmber" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffb703"/>
+      <stop offset="100%" stop-color="#fb8500"/>
+    </linearGradient>
+    <linearGradient id="gradGreenTop" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00e676"/>
+      <stop offset="100%" stop-color="#00c853"/>
+    </linearGradient>
+    <linearGradient id="gradGreenBottom" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00c853"/>
+      <stop offset="100%" stop-color="#00a844"/>
+    </linearGradient>
+
+    <!-- Clip path to round the triangle corners -->
+    <clipPath id="roundedPlayTriangle">
+      <path d="M 120 70 
+               Q 100 55 100 85 
+               L 100 427 
+               Q 100 457 125 442 
+               L 415 275 
+               Q 440 256 415 237 
+               Z" />
+    </clipPath>
+  </defs>
+
+  <!-- Triangle with Facets Clipped to Rounded Outer Contour -->
+  <g clip-path="url(#roundedPlayTriangle)">
+    <!-- Facet 1: Top Cyan/Azure Slope -->
+    <polygon points="100,55 270,256 345,160 100,55" fill="url(#gradTopCyan)" />
+
+    <!-- Facet 2: Mid-Left Azure -->
+    <polygon points="100,55 270,256 100,320" fill="url(#gradMidCyan)" />
+
+    <!-- Facet 3: Lower-Left Coral Pink -->
+    <polygon points="100,320 270,256 120,445" fill="url(#gradCoral)" />
+
+    <!-- Facet 4: Bottom Amber/Yellow -->
+    <polygon points="120,445 270,256 345,352 120,445" fill="url(#gradAmber)" />
+
+    <!-- Facet 5: Upper-Right Emerald Green Apex -->
+    <polygon points="270,256 440,256 345,160" fill="url(#gradGreenTop)" />
+
+    <!-- Facet 6: Lower-Right Emerald Green Apex -->
+    <polygon points="270,256 440,256 345,352" fill="url(#gradGreenBottom)" />
+
+    <!-- Clean Crisp Seam Dividers -->
+    <line x1="100" y1="55" x2="270" y2="256" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+    <line x1="100" y1="320" x2="270" y2="256" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+    <line x1="120" y1="445" x2="270" y2="256" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+    <line x1="345" y1="160" x2="270" y2="256" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+    <line x1="345" y1="352" x2="270" y2="256" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+    <line x1="270" y1="256" x2="440" y2="256" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+  </g>
+</svg>

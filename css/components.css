@@ -41,20 +41,16 @@
 }
 
 .brand-logo-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, #01875f 0%, #00b074 50%, #34a853 100%);
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
-  box-shadow: 0 1px 4px rgba(1, 135, 95, 0.3);
   transition: transform var(--transition-spring);
 }
 
 .brand-wrapper:hover .brand-logo-icon {
-  transform: scale(1.05);
+  transform: scale(1.06);
 }
 
 .brand-title {
