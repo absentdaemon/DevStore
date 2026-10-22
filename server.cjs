@@ -95,5 +95,19 @@ process.on('unhandledRejection', (err) => {
   log('Server unhandledRejection: ' + (err.stack || err));
 });
 
+process.on('exit', (code) => {
+  log(`Process exiting with code: ${code}`);
+});
+
+process.on('SIGINT', () => {
+  log('Received SIGINT');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  log('Received SIGTERM');
+  process.exit(0);
+});
+
 // Robust keep-alive loop so background tasks don't terminate unexpectedly
 setInterval(() => {}, 10000);
