@@ -2,12 +2,36 @@
   "version": "1.0.0",
   "updatedAt": "2026-10-22T10:00:00Z",
   "categories": [
-    { "id": "all", "label": "All Apps", "icon": "grid_view" },
-    { "id": "utilities", "label": "Utilities", "icon": "build" },
-    { "id": "productivity", "label": "Productivity", "icon": "check_circle" },
-    { "id": "games", "label": "Games", "icon": "sports_esports" },
-    { "id": "developer", "label": "Developer Tools", "icon": "terminal" },
-    { "id": "media", "label": "Media & Audio", "icon": "headphones" }
+    {
+      "id": "all",
+      "label": "All Apps",
+      "icon": "grid_view"
+    },
+    {
+      "id": "utilities",
+      "label": "Utilities",
+      "icon": "build"
+    },
+    {
+      "id": "productivity",
+      "label": "Productivity",
+      "icon": "check_circle"
+    },
+    {
+      "id": "games",
+      "label": "Games",
+      "icon": "sports_esports"
+    },
+    {
+      "id": "developer",
+      "label": "Developer Tools",
+      "icon": "terminal"
+    },
+    {
+      "id": "media",
+      "label": "Media & Audio",
+      "icon": "headphones"
+    }
   ],
   "applications": [
     {
@@ -23,7 +47,11 @@
       "iconGlyph": "chess",
       "version": "1.4.2",
       "size": "18.4 MB",
-      "platforms": ["windows", "android", "web"],
+      "platforms": [
+        "windows",
+        "android",
+        "web"
+      ],
       "license": "MIT Open Source",
       "description": "Retro Chess Arena is an elegant, retro-styled chess client designed for offline and casual multiplayer tactical training. Featuring configurable neural-heuristic AI opponents, custom opening explorers, and over 1,500 grandmaster puzzle scenarios. Built with clean standard graphics and low latency input for competitive chess enthusiasts.",
       "features": [
@@ -33,21 +61,88 @@
         "Full keyboard and touch-first board navigation"
       ],
       "screenshots": [
-        { "title": "Main Board View", "caption": "Classic wooden board with dynamic legal move indicators and capture tray" },
-        { "title": "Tactics Trainer", "caption": "Daily tactical puzzle scenarios with evaluation bar and hint mode" },
-        { "title": "Engine Analysis", "caption": "Deep heuristic evaluation and opening book statistics" }
+        {
+          "title": "Grandmaster Chessboard",
+          "caption": "Woodgrain texture board with legal move markers and capture tray",
+          "orientation": "portrait"
+        },
+        {
+          "title": "Tactics & Puzzle Trainer",
+          "caption": "Daily tactical puzzle scenarios with evaluation bar and hint mode",
+          "orientation": "portrait"
+        },
+        {
+          "title": "Neural Heuristic Engine",
+          "caption": "Deep AI evaluation, opening book statistics, and depth graph",
+          "orientation": "portrait"
+        },
+        {
+          "title": "PGN Game Explorer",
+          "caption": "Interactive move history and full notation export",
+          "orientation": "portrait"
+        }
       ],
       "permissions": [
-        { "name": "Storage (Read/Write)", "detail": "Required only for importing and exporting PGN game files" }
+        {
+          "name": "Storage (Read/Write)",
+          "detail": "Required only for importing and exporting PGN game files"
+        }
       ],
       "reviews": [
-        { "author": "Magnus K.", "rating": 5, "date": "2026-10-18", "comment": "Outstanding responsive board feel. The offline puzzle mode is top notch!" },
-        { "author": "Elena R.", "rating": 5, "date": "2026-10-14", "comment": "Crisp visuals, works flawlessly on both my Windows desktop and Android tablet." }
+        {
+          "id": "rev-c1",
+          "author": "Magnus K.",
+          "avatar": "#0284c7",
+          "rating": 5,
+          "date": "October 18, 2026",
+          "device": "Phone",
+          "helpfulCount": 245,
+          "comment": "Outstanding responsive board feel. The offline puzzle mode is top notch! Works smoothly across devices with zero lag."
+        },
+        {
+          "id": "rev-c2",
+          "author": "Elena R.",
+          "avatar": "#7c3aed",
+          "rating": 5,
+          "date": "October 14, 2026",
+          "device": "Desktop",
+          "helpfulCount": 112,
+          "comment": "Crisp visuals, works flawlessly on both my Windows desktop and Android tablet. The PGN export is seamless."
+        },
+        {
+          "id": "rev-c3",
+          "author": "David B.",
+          "avatar": "#059669",
+          "rating": 4,
+          "date": "October 10, 2026",
+          "device": "Phone",
+          "helpfulCount": 48,
+          "comment": "Great AI difficulty progression. Would love an option for custom sound effects in future updates."
+        }
       ],
       "downloads": {
         "android": "downloads/retro-chess-arena-1.4.2.apk",
         "windows": "downloads/retro-chess-arena-1.4.2-win-x64.zip",
         "web": "https://chess.devstore.org"
+      },
+      "distribution": {
+        "1": 1,
+        "2": 1,
+        "3": 4,
+        "4": 12,
+        "5": 82
+      },
+      "video": {
+        "title": "Retro Chess Arena - Official Gameplay Trailer",
+        "duration": "0:45",
+        "views": "145K views"
+      },
+      "contentRating": "Rated for 3+",
+      "support": {
+        "website": "https://devstore.org",
+        "email": "support@devstore.org",
+        "address": "DevStore Open Source Foundation, 100 Hacker Way, Mountain View, CA",
+        "privacyPolicy": "https://devstore.org/privacy"
       }
     },
     {
@@ -63,7 +158,11 @@
       "iconGlyph": "calculate",
       "version": "2.1.0",
       "size": "4.2 MB",
-      "platforms": ["windows", "android", "web"],
+      "platforms": [
+        "windows",
+        "android",
+        "web"
+      ],
       "license": "MIT Open Source",
       "description": "Aether Calculator is a modern, distraction-free scientific and programmer calculator. It supports high-precision decimal operations, real-time formula evaluation, dynamic unit conversions across 30+ physical domains, and instant memory recall. Designed with zero telemetry and instant startup time.",
       "features": [
@@ -73,21 +172,78 @@
         "Session calculation history with one-tap expression recall"
       ],
       "screenshots": [
-        { "title": "Scientific Keypad", "caption": "Full scientific layout with matrix math and complex number evaluation" },
-        { "title": "Unit Converter", "caption": "Instant live conversions across physical and digital units" },
-        { "title": "History Panel", "caption": "Scrollable timestamped calculation archive with export" }
+        {
+          "title": "Scientific Pad",
+          "caption": "Complex trigonometry, calculus, and matrix mathematics",
+          "orientation": "portrait"
+        },
+        {
+          "title": "Programmer Bitwise Mode",
+          "caption": "Real-time binary, octal, decimal, and hex conversions",
+          "orientation": "portrait"
+        },
+        {
+          "title": "Live Unit Converter",
+          "caption": "Over 30 physical, engineering, and currency conversion domains",
+          "orientation": "portrait"
+        },
+        {
+          "title": "Calculation History",
+          "caption": "Timestamped calculation tape with one-tap memory reuse",
+          "orientation": "portrait"
+        }
       ],
       "permissions": [
-        { "name": "None", "detail": "Operates entirely offline without device permissions" }
+        {
+          "name": "None",
+          "detail": "Operates entirely offline without device permissions"
+        }
       ],
       "reviews": [
-        { "author": "David W.", "rating": 5, "date": "2026-10-19", "comment": "The cleanest calculator app I have ever used. Fast, zero ads, no bloat." },
-        { "author": "Priya S.", "rating": 5, "date": "2026-10-10", "comment": "Programmer mode is an absolute lifesaver for binary/hex bit-shifting." }
+        {
+          "id": "rev-org.devstore.calculator-1",
+          "author": "Verified User",
+          "avatar": "#0284c7",
+          "rating": 5,
+          "date": "October 15, 2026",
+          "device": "Phone",
+          "helpfulCount": 88,
+          "comment": "Really solid experience with Aether Calculator. Fast, private, and works as advertised."
+        },
+        {
+          "id": "rev-org.devstore.calculator-2",
+          "author": "Tech Enthusiast",
+          "avatar": "#7c3aed",
+          "rating": 5,
+          "date": "October 11, 2026",
+          "device": "Desktop",
+          "helpfulCount": 34,
+          "comment": "Very clean interface and zero telemetry is a massive plus."
+        }
       ],
       "downloads": {
         "android": "downloads/aether-calculator-2.1.0.apk",
         "windows": "downloads/aether-calculator-2.1.0-win-x64.zip",
         "web": "https://calc.devstore.org"
+      },
+      "distribution": {
+        "1": 1,
+        "2": 0,
+        "3": 1,
+        "4": 7,
+        "5": 91
+      },
+      "video": {
+        "title": "Aether Calculator - Precision Math Feature Tour",
+        "duration": "0:32",
+        "views": "89K views"
+      },
+      "contentRating": "Rated for 3+",
+      "support": {
+        "website": "https://devstore.org",
+        "email": "support@devstore.org",
+        "address": "DevStore Open Source Foundation, 100 Hacker Way, Mountain View, CA",
+        "privacyPolicy": "https://devstore.org/privacy"
       }
     },
     {
@@ -103,7 +259,11 @@
       "iconGlyph": "task_alt",
       "version": "3.0.1",
       "size": "12.8 MB",
-      "platforms": ["windows", "android", "web"],
+      "platforms": [
+        "windows",
+        "android",
+        "web"
+      ],
       "license": "Apache 2.0",
       "description": "Chronos provides a lightweight, local-first productivity workspace combining visual Kanban boards, Pomodoro sprint timers, and markdown task notes. Your data stays on your local filesystem without requiring cloud sign-ins.",
       "features": [
@@ -113,20 +273,70 @@
         "Local JSON backups and automated daily snapshots"
       ],
       "screenshots": [
-        { "title": "Kanban Workspace", "caption": "Visual columns for To Do, In Progress, Review, and Done" },
-        { "title": "Focus Timer", "caption": "Integrated 25-minute Pomodoro timer with ambient sounds" },
-        { "title": "Sprint Analytics", "caption": "Weekly task completion metrics and productivity streaks" }
+        {
+          "title": "Kanban Workspace",
+          "caption": "Visual columns for To Do, In Progress, Review, and Done"
+        },
+        {
+          "title": "Focus Timer",
+          "caption": "Integrated 25-minute Pomodoro timer with ambient sounds"
+        },
+        {
+          "title": "Sprint Analytics",
+          "caption": "Weekly task completion metrics and productivity streaks"
+        }
       ],
       "permissions": [
-        { "name": "Notifications", "detail": "Used solely to alert you when a focus timer finishes" }
+        {
+          "name": "Notifications",
+          "detail": "Used solely to alert you when a focus timer finishes"
+        }
       ],
       "reviews": [
-        { "author": "Liam T.", "rating": 5, "date": "2026-10-17", "comment": "Local-first productivity is the future. Chronos is fast and reliable." }
+        {
+          "id": "rev-org.devstore.chronos-1",
+          "author": "Verified User",
+          "avatar": "#0284c7",
+          "rating": 5,
+          "date": "October 15, 2026",
+          "device": "Phone",
+          "helpfulCount": 88,
+          "comment": "Really solid experience with Chronos Task Manager. Fast, private, and works as advertised."
+        },
+        {
+          "id": "rev-org.devstore.chronos-2",
+          "author": "Tech Enthusiast",
+          "avatar": "#7c3aed",
+          "rating": 5,
+          "date": "October 11, 2026",
+          "device": "Desktop",
+          "helpfulCount": 34,
+          "comment": "Very clean interface and zero telemetry is a massive plus."
+        }
       ],
       "downloads": {
         "android": "downloads/chronos-task-3.0.1.apk",
         "windows": "downloads/chronos-task-3.0.1-win-x64.zip",
         "web": "https://chronos.devstore.org"
+      },
+      "distribution": {
+        "1": 1,
+        "2": 2,
+        "3": 6,
+        "4": 16,
+        "5": 75
+      },
+      "video": {
+        "title": "Chronos Task Manager - Sprint & Kanban Walkthrough",
+        "duration": "1:05",
+        "views": "62K views"
+      },
+      "contentRating": "Rated for 3+",
+      "support": {
+        "website": "https://devstore.org",
+        "email": "support@devstore.org",
+        "address": "DevStore Open Source Foundation, 100 Hacker Way, Mountain View, CA",
+        "privacyPolicy": "https://devstore.org/privacy"
       }
     },
     {
@@ -142,7 +352,10 @@
       "iconGlyph": "edit_note",
       "version": "1.8.0",
       "size": "9.5 MB",
-      "platforms": ["windows", "web"],
+      "platforms": [
+        "windows",
+        "web"
+      ],
       "license": "MIT Open Source",
       "description": "Markdown Canvas is a focused editor built for software engineers and documentation writers. Featuring live split-pane rendering, full Mermaid.js and KaTeX math support, code block copy shortcuts, and one-click PDF/HTML export.",
       "features": [
@@ -152,18 +365,65 @@
         "Zero-telemetry local file system auto-save"
       ],
       "screenshots": [
-        { "title": "Dual Pane Editor", "caption": "Clean monospace editor alongside live rendered HTML preview" },
-        { "title": "Diagram Rendering", "caption": "Instant visualization of flowcharts, sequence diagrams, and equations" }
+        {
+          "title": "Dual Pane Editor",
+          "caption": "Clean monospace editor alongside live rendered HTML preview"
+        },
+        {
+          "title": "Diagram Rendering",
+          "caption": "Instant visualization of flowcharts, sequence diagrams, and equations"
+        }
       ],
       "permissions": [
-        { "name": "File System", "detail": "Required to open and save local .md and .markdown documents" }
+        {
+          "name": "File System",
+          "detail": "Required to open and save local .md and .markdown documents"
+        }
       ],
       "reviews": [
-        { "author": "Sara M.", "rating": 5, "date": "2026-10-12", "comment": "Replaced three bloated editors with this. It renders Mermaid diagrams instantly." }
+        {
+          "id": "rev-org.devstore.mdcanvas-1",
+          "author": "Verified User",
+          "avatar": "#0284c7",
+          "rating": 5,
+          "date": "October 15, 2026",
+          "device": "Phone",
+          "helpfulCount": 88,
+          "comment": "Really solid experience with Markdown Canvas. Fast, private, and works as advertised."
+        },
+        {
+          "id": "rev-org.devstore.mdcanvas-2",
+          "author": "Tech Enthusiast",
+          "avatar": "#7c3aed",
+          "rating": 5,
+          "date": "October 11, 2026",
+          "device": "Desktop",
+          "helpfulCount": 34,
+          "comment": "Very clean interface and zero telemetry is a massive plus."
+        }
       ],
       "downloads": {
         "windows": "downloads/markdown-canvas-1.8.0-win-x64.zip",
         "web": "https://mdcanvas.devstore.org"
+      },
+      "distribution": {
+        "1": 1,
+        "2": 2,
+        "3": 7,
+        "4": 19,
+        "5": 71
+      },
+      "video": {
+        "title": "Markdown Canvas - Live Preview & Mermaid Demo",
+        "duration": "0:50",
+        "views": "41K views"
+      },
+      "contentRating": "Rated for 3+",
+      "support": {
+        "website": "https://devstore.org",
+        "email": "support@devstore.org",
+        "address": "DevStore Open Source Foundation, 100 Hacker Way, Mountain View, CA",
+        "privacyPolicy": "https://devstore.org/privacy"
       }
     },
     {
@@ -179,7 +439,10 @@
       "iconGlyph": "wb_sunny",
       "version": "2.4.5",
       "size": "8.1 MB",
-      "platforms": ["windows", "android"],
+      "platforms": [
+        "windows",
+        "android"
+      ],
       "license": "MIT Open Source",
       "description": "Weather Pulse delivers hyper-local meteorological forecasts using open data sources. Features hourly temperature timelines, precipitation barometers, wind vectors, UV index indicators, and animated satellite radar overlays.",
       "features": [
@@ -189,18 +452,65 @@
         "Custom weather widgets with automatic low-power refreshes"
       ],
       "screenshots": [
-        { "title": "Daily Telemetry", "caption": "Hourly forecast curves and precipitation probabilities" },
-        { "title": "Satellite Radar", "caption": "Real-time precipitation doppler radar maps" }
+        {
+          "title": "Daily Telemetry",
+          "caption": "Hourly forecast curves and precipitation probabilities"
+        },
+        {
+          "title": "Satellite Radar",
+          "caption": "Real-time precipitation doppler radar maps"
+        }
       ],
       "permissions": [
-        { "name": "Location (Optional)", "detail": "Used only to determine local weather when requested" }
+        {
+          "name": "Location (Optional)",
+          "detail": "Used only to determine local weather when requested"
+        }
       ],
       "reviews": [
-        { "author": "Carlos G.", "rating": 5, "date": "2026-10-15", "comment": "No intrusive ads, accurate radar, and beautiful clean animations." }
+        {
+          "id": "rev-org.devstore.weather-1",
+          "author": "Verified User",
+          "avatar": "#0284c7",
+          "rating": 5,
+          "date": "October 15, 2026",
+          "device": "Phone",
+          "helpfulCount": 88,
+          "comment": "Really solid experience with Weather Pulse. Fast, private, and works as advertised."
+        },
+        {
+          "id": "rev-org.devstore.weather-2",
+          "author": "Tech Enthusiast",
+          "avatar": "#7c3aed",
+          "rating": 5,
+          "date": "October 11, 2026",
+          "device": "Desktop",
+          "helpfulCount": 34,
+          "comment": "Very clean interface and zero telemetry is a massive plus."
+        }
       ],
       "downloads": {
         "android": "downloads/weather-pulse-2.4.5.apk",
         "windows": "downloads/weather-pulse-2.4.5-win-x64.zip"
+      },
+      "distribution": {
+        "1": 2,
+        "2": 2,
+        "3": 7,
+        "4": 21,
+        "5": 68
+      },
+      "video": {
+        "title": "Weather Pulse - Satellite Doppler Radar Tour",
+        "duration": "0:40",
+        "views": "110K views"
+      },
+      "contentRating": "Rated for 3+",
+      "support": {
+        "website": "https://devstore.org",
+        "email": "support@devstore.org",
+        "address": "DevStore Open Source Foundation, 100 Hacker Way, Mountain View, CA",
+        "privacyPolicy": "https://devstore.org/privacy"
       }
     },
     {
@@ -216,7 +526,10 @@
       "iconGlyph": "equalizer",
       "version": "1.2.0",
       "size": "24.6 MB",
-      "platforms": ["windows", "web"],
+      "platforms": [
+        "windows",
+        "web"
+      ],
       "license": "MIT Open Source",
       "description": "Pixel Pulse is a creative WebAudio sound studio featuring an 8-track drum sequencer, dual-oscillator polyphonic synthesizer, customizable reverb/delay effects, and real-time audio FFT spectral visualizer.",
       "features": [
@@ -226,18 +539,65 @@
         "WAV audio export and MIDI keyboard device support"
       ],
       "screenshots": [
-        { "title": "Step Sequencer", "caption": "8-track rhythm grid with velocity controls and sample selection" },
-        { "title": "Synthesizer Rack", "caption": "Oscillator filters, LFO modulation, and delay/reverb bus" }
+        {
+          "title": "Step Sequencer",
+          "caption": "8-track rhythm grid with velocity controls and sample selection"
+        },
+        {
+          "title": "Synthesizer Rack",
+          "caption": "Oscillator filters, LFO modulation, and delay/reverb bus"
+        }
       ],
       "permissions": [
-        { "name": "Microphone (Optional)", "detail": "Required only if recording live vocal samples" }
+        {
+          "name": "Microphone (Optional)",
+          "detail": "Required only if recording live vocal samples"
+        }
       ],
       "reviews": [
-        { "author": "Jordan K.", "rating": 5, "date": "2026-10-08", "comment": "Remarkably powerful in-browser synth. Audio export is crystal clear." }
+        {
+          "id": "rev-org.devstore.audiopulse-1",
+          "author": "Verified User",
+          "avatar": "#0284c7",
+          "rating": 5,
+          "date": "October 15, 2026",
+          "device": "Phone",
+          "helpfulCount": 88,
+          "comment": "Really solid experience with Pixel Pulse Audio Studio. Fast, private, and works as advertised."
+        },
+        {
+          "id": "rev-org.devstore.audiopulse-2",
+          "author": "Tech Enthusiast",
+          "avatar": "#7c3aed",
+          "rating": 5,
+          "date": "October 11, 2026",
+          "device": "Desktop",
+          "helpfulCount": 34,
+          "comment": "Very clean interface and zero telemetry is a massive plus."
+        }
       ],
       "downloads": {
         "windows": "downloads/pixel-pulse-audio-1.2.0-win-x64.zip",
         "web": "https://audiopulse.devstore.org"
+      },
+      "distribution": {
+        "1": 1,
+        "2": 1,
+        "3": 3,
+        "4": 11,
+        "5": 84
+      },
+      "video": {
+        "title": "Pixel Pulse Studio - Synthesizer Beat Jam",
+        "duration": "1:15",
+        "views": "230K views"
+      },
+      "contentRating": "Rated for 3+",
+      "support": {
+        "website": "https://devstore.org",
+        "email": "support@devstore.org",
+        "address": "DevStore Open Source Foundation, 100 Hacker Way, Mountain View, CA",
+        "privacyPolicy": "https://devstore.org/privacy"
       }
     },
     {
@@ -253,7 +613,10 @@
       "iconGlyph": "terminal",
       "version": "4.0.2",
       "size": "14.3 MB",
-      "platforms": ["windows", "android"],
+      "platforms": [
+        "windows",
+        "android"
+      ],
       "license": "GPL-3.0",
       "description": "DevTerm Pro is a modern, high-performance terminal emulator engineered for developers. Supports custom color themes, ligatures, split-pane multiplexing, SSH session bookmarks, and full UTF-8 Unicode glyph rendering.",
       "features": [
@@ -263,18 +626,77 @@
         "Customizable powerline themes and font ligature support"
       ],
       "screenshots": [
-        { "title": "Multiplexed Terminals", "caption": "Quad split panes running live build scripts and system monitors" },
-        { "title": "Theme Configurator", "caption": "Over 20 built-in dark and high-contrast color palettes" }
+        {
+          "title": "Multiplexed Grid",
+          "caption": "Quad split panes running live build scripts and performance monitors",
+          "orientation": "landscape"
+        },
+        {
+          "title": "Powerline Themes",
+          "caption": "Over 20 built-in dark and high-contrast color palettes",
+          "orientation": "landscape"
+        },
+        {
+          "title": "SSH Session Vault",
+          "caption": "Encrypted credential storage and key agent integration",
+          "orientation": "landscape"
+        },
+        {
+          "title": "GPU Glyph Engine",
+          "caption": "Zero-latency 144Hz font rendering with ligature support",
+          "orientation": "landscape"
+        }
       ],
       "permissions": [
-        { "name": "Network Access", "detail": "Required for remote SSH connections and terminal sessions" }
+        {
+          "name": "Network Access",
+          "detail": "Required for remote SSH connections and terminal sessions"
+        }
       ],
       "reviews": [
-        { "author": "Alex N.", "rating": 5, "date": "2026-10-16", "comment": "The fastest terminal on Windows. Split panes work flawlessly." }
+        {
+          "id": "rev-t1",
+          "author": "Alex N.",
+          "avatar": "#059669",
+          "rating": 5,
+          "date": "October 16, 2026",
+          "device": "Desktop",
+          "helpfulCount": 420,
+          "comment": "The fastest terminal on Windows. Split panes work flawlessly and startup time is virtually instantaneous."
+        },
+        {
+          "id": "rev-t2",
+          "author": "Samantha V.",
+          "avatar": "#db2777",
+          "rating": 5,
+          "date": "October 12, 2026",
+          "device": "Desktop",
+          "helpfulCount": 185,
+          "comment": "Font ligature rendering is gorgeous. Best developer tool on DevStore hands down."
+        }
       ],
       "downloads": {
         "android": "downloads/devterm-pro-4.0.2.apk",
         "windows": "downloads/devterm-pro-4.0.2-win-x64.zip"
+      },
+      "distribution": {
+        "1": 1,
+        "2": 0,
+        "3": 1,
+        "4": 5,
+        "5": 93
+      },
+      "video": {
+        "title": "DevTerm Pro - GPU Terminal Speed & Multiplexing",
+        "duration": "0:58",
+        "views": "340K views"
+      },
+      "contentRating": "Rated for 12+",
+      "support": {
+        "website": "https://devstore.org",
+        "email": "support@devstore.org",
+        "address": "DevStore Open Source Foundation, 100 Hacker Way, Mountain View, CA",
+        "privacyPolicy": "https://devstore.org/privacy"
       }
     },
     {
@@ -290,7 +712,11 @@
       "iconGlyph": "palette",
       "version": "2.0.4",
       "size": "31.2 MB",
-      "platforms": ["windows", "android", "web"],
+      "platforms": [
+        "windows",
+        "android",
+        "web"
+      ],
       "license": "MIT Open Source",
       "description": "Vector Craft is a versatile creative design studio combining vector spline paths with raster brush tools. Perfect for sketching UI mockups, game sprites, icons, and illustrations.",
       "features": [
@@ -300,19 +726,66 @@
         "Stylus pressure sensitivity and palm-rejection support"
       ],
       "screenshots": [
-        { "title": "Vector Canvas", "caption": "Precision spline path manipulation and gradient fills" },
-        { "title": "Layer Manager", "caption": "Hierarchical grouping, blend modes, and mask controls" }
+        {
+          "title": "Vector Canvas",
+          "caption": "Precision spline path manipulation and gradient fills"
+        },
+        {
+          "title": "Layer Manager",
+          "caption": "Hierarchical grouping, blend modes, and mask controls"
+        }
       ],
       "permissions": [
-        { "name": "Storage Access", "detail": "Required to import images and export artwork files" }
+        {
+          "name": "Storage Access",
+          "detail": "Required to import images and export artwork files"
+        }
       ],
       "reviews": [
-        { "author": "Mia C.", "rating": 5, "date": "2026-10-11", "comment": "Super intuitive UI and the vector export is very clean." }
+        {
+          "id": "rev-org.devstore.pixelpaint-1",
+          "author": "Verified User",
+          "avatar": "#0284c7",
+          "rating": 5,
+          "date": "October 15, 2026",
+          "device": "Phone",
+          "helpfulCount": 88,
+          "comment": "Really solid experience with Vector Craft Paint. Fast, private, and works as advertised."
+        },
+        {
+          "id": "rev-org.devstore.pixelpaint-2",
+          "author": "Tech Enthusiast",
+          "avatar": "#7c3aed",
+          "rating": 5,
+          "date": "October 11, 2026",
+          "device": "Desktop",
+          "helpfulCount": 34,
+          "comment": "Very clean interface and zero telemetry is a massive plus."
+        }
       ],
       "downloads": {
         "android": "downloads/vector-craft-2.0.4.apk",
         "windows": "downloads/vector-craft-2.0.4-win-x64.zip",
         "web": "https://vectorcraft.devstore.org"
+      },
+      "distribution": {
+        "1": 1,
+        "2": 2,
+        "3": 6,
+        "4": 18,
+        "5": 73
+      },
+      "video": {
+        "title": "Vector Craft - Drawing Vector Splines & Masks",
+        "duration": "1:10",
+        "views": "75K views"
+      },
+      "contentRating": "Rated for 3+",
+      "support": {
+        "website": "https://devstore.org",
+        "email": "support@devstore.org",
+        "address": "DevStore Open Source Foundation, 100 Hacker Way, Mountain View, CA",
+        "privacyPolicy": "https://devstore.org/privacy"
       }
     }
   ]

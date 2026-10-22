@@ -120,11 +120,18 @@ export class DevStoreApp {
       mainContent: document.getElementById('main-content'),
       detailView: document.getElementById('detail-view'),
       downloadModal: document.getElementById('download-modal'),
+      screenshotLightboxModal: document.getElementById('screenshot-lightbox-modal'),
+      reviewModal: document.getElementById('review-modal'),
       userAvatarBtn: document.getElementById('user-avatar-btn'),
       profilePopover: document.getElementById('profile-popover'),
       signinModal: document.getElementById('signin-modal'),
       manageAppsModal: document.getElementById('manage-apps-modal')
     };
+
+    this.state.lightbox = { isOpen: false, appId: null, currentIndex: 0 };
+    this.state.reviewDeviceFilter = 'all';
+    this.state.supportAccordionOpen = false;
+    this.state.videoState = {};
   }
 
   async init() {
@@ -234,7 +241,11 @@ export class DevStoreApp {
         e.preventDefault();
         this.openSearch();
       } else if (e.key === 'Escape') {
-        if (this.dom.profilePopover && this.dom.profilePopover.classList.contains('open')) {
+        if (this.state.lightbox && this.state.lightbox.isOpen) {
+          this.closeScreenshotLightbox();
+        } else if (this.dom.reviewModal && this.dom.reviewModal.classList.contains('open')) {
+          this.dom.reviewModal.classList.remove('open');
+        } else if (this.dom.profilePopover && this.dom.profilePopover.classList.contains('open')) {
           this.closeProfilePopover();
         } else if (this.dom.signinModal && this.dom.signinModal.classList.contains('open')) {
           this.closeSignInModal();
@@ -242,6 +253,12 @@ export class DevStoreApp {
           this.closeManageAppsModal();
         } else if (this.state.isSearchOpen) {
           this.closeSearch();
+        }
+      } else if (this.state.lightbox && this.state.lightbox.isOpen) {
+        if (e.key === 'ArrowLeft') {
+          this.navigateLightbox(-1);
+        } else if (e.key === 'ArrowRight') {
+          this.navigateLightbox(1);
         }
       }
     });
@@ -846,7 +863,7 @@ export class DevStoreApp {
   }
 
   // --------------------------------------------------------------------------
-  // Detail View Rendering (Google Play High-Fidelity)
+  // Detail View Rendering (Google Play High-Fidelity Parity)
   // --------------------------------------------------------------------------
   renderDetailView(appId) {
     const app = this.searchEngine.getAppById(appId);
@@ -863,141 +880,745 @@ export class DevStoreApp {
       return;
     }
 
-    const screenshots = app.screenshots || [
-      'assets/icons/aether-calc.svg',
-      'assets/icons/devterm-pro.svg'
-    ];
+    const screenshots = app.screenshots || [];
+    const isInstalled = this.user && this.user.installedApps && this.user.installedApps.includes(app.id);
+    const reviews = app.reviews || [];
+    const distribution = app.distribution || { 5: 75, 4: 15, 3: 6, 2: 2, 1: 2 };
+    const similarApps = this.searchEngine.getRecommendations(app.category, 4).filter(a => a.id !== app.id).slice(0, 3);
 
     this.dom.detailView.innerHTML = `
       <div class="detail-back-bar">
-        <button class="detail-back-btn" id="detail-back-btn" aria-label="Go back to catalog">
+        <button class="detail-back-btn" id="detail-back-btn" aria-label="Go back to store">
           ${ICONS.back} <span>Back to store</span>
         </button>
       </div>
 
+      <!-- Detail Header: Desktop 2-Column Split Matching Google Play Reference -->
       <div class="detail-header">
-        <div class="detail-app-icon" style="background-color: ${app.iconBg}; color: ${app.iconColor};">
-          ${getGlyphSvg(app.iconGlyph)}
-        </div>
         <div class="detail-header-info">
           <h1 class="detail-app-title">${this.escapeHtml(app.name)}</h1>
-          <div class="detail-app-dev">
+          <div class="detail-app-dev" onclick="devstore.submitSearch('${this.escapeHtml(app.developer)}')">
             <span>${this.escapeHtml(app.developer)}</span>
             <span title="Verified Publisher">${ICONS.verified}</span>
           </div>
 
           <div class="detail-metrics-row">
             <div class="metric-item">
-              <span class="metric-val">${app.rating ? app.rating.toFixed(1) : '4.8'} ★</span>
-              <span class="metric-lbl">${app.reviewCount || 1000} reviews</span>
+              <span class="metric-val">
+                <span>${app.rating ? app.rating.toFixed(1) : '4.8'}</span>
+                <span class="star-glyph">★</span>
+              </span>
+              <span class="metric-lbl">${(app.reviewCount || 1000).toLocaleString()} reviews</span>
             </div>
+            <div class="metric-divider" aria-hidden="true"></div>
             <div class="metric-item">
-              <span class="metric-val">${app.downloads || '50K+'}</span>
+              <span class="metric-val">${app.downloads ? '50K+' : '10K+'}</span>
               <span class="metric-lbl">Downloads</span>
             </div>
+            <div class="metric-divider" aria-hidden="true"></div>
             <div class="metric-item">
-              <span class="metric-val">Rated for 3+</span>
+              <span class="metric-val">${app.contentRating || 'Rated for 3+'}</span>
               <span class="metric-lbl">Content rating</span>
             </div>
           </div>
 
-          <div class="detail-cta-row">
-            <button class="detail-install-btn" id="detail-install-cta">
-              Install on Windows
+          <div class="detail-cta-row" id="detail-cta-row">
+            ${isInstalled ? `
+              <button class="detail-install-btn installed" id="detail-install-cta" onclick="alert('Launching ${this.escapeHtml(app.name)}...')">
+                Open
+              </button>
+              <button class="detail-action-btn" id="detail-uninstall-btn" onclick="devstore.uninstallApp('${app.id}')">
+                Uninstall
+              </button>
+            ` : `
+              <button class="detail-install-btn" id="detail-install-cta" onclick="devstore.startInstallSimulation('${app.id}')">
+                Install on Windows
+              </button>
+            `}
+            <button class="detail-share-btn" onclick="devstore.shareApp('${app.id}')">
+              ${ICONS.openInNew} <span>Share</span>
             </button>
-            <button class="detail-share-btn" onclick="alert('Link copied to clipboard!')">
-              Share
+            <button class="detail-action-btn" id="detail-wishlist-btn" onclick="devstore.toggleWishlist('${app.id}')">
+              ${ICONS.playPass} <span>Add to wishlist</span>
             </button>
           </div>
         </div>
-      </div>
 
-      <!-- Screenshot Preview Carousel -->
-      <div class="detail-screenshots-section">
-        <div class="detail-screenshots-track">
-          <div style="height:240px; width:420px; border-radius:8px; background:linear-gradient(135deg, #2b5876, #4e4376); display:flex; align-items:center; justify-content:center; color:#fff; font-size:24px; font-weight:600; flex-shrink:0;">
-            ${app.name} Overview
-          </div>
-          <div style="height:240px; width:420px; border-radius:8px; background:linear-gradient(135deg, #11998e, #38ef7d); display:flex; align-items:center; justify-content:center; color:#fff; font-size:24px; font-weight:600; flex-shrink:0;">
-            Features & Capabilities
-          </div>
-          <div style="height:240px; width:420px; border-radius:8px; background:linear-gradient(135deg, #ff416c, #ff4b2b); display:flex; align-items:center; justify-content:center; color:#fff; font-size:24px; font-weight:600; flex-shrink:0;">
-            Settings & Performance
+        <div class="detail-header-icon-wrap">
+          <div class="detail-app-icon" style="background-color: ${app.iconBg}; color: ${app.iconColor};">
+            <div style="transform: scale(2.2); display: flex; align-items: center; justify-content: center;">
+              ${getGlyphSvg(app.iconGlyph)}
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- About this app -->
-      <div class="detail-about-section">
-        <h2 class="detail-section-title">About this app</h2>
-        <p class="detail-about-text">
-          ${this.escapeHtml(app.description || app.tagline || '')}
-        </p>
-        <div class="detail-tags-row">
-          <span class="detail-tag-chip">${app.category || 'Tools'}</span>
-          <span class="detail-tag-chip">Free & Open Source</span>
-          <span class="detail-tag-chip">Version ${app.version || '1.0.0'}</span>
-          <span class="detail-tag-chip">${app.size || '15 MB'}</span>
-        </div>
-      </div>
+      <!-- Detail Body Layout: Main Content (68%) + Sidebar (32%) -->
+      <div class="detail-main-layout">
+        <div class="detail-primary-col">
 
-      <!-- Data Safety -->
-      <div class="detail-safety-card">
-        <div class="safety-header">
-          ${ICONS.shield}
-          <span>Data safety</span>
+          <!-- Screenshot & Video Carousel Track -->
+          <div class="detail-media-container">
+            <div class="detail-media-track" id="detail-media-track">
+              <!-- Video Trailer Preview Card -->
+              <div class="video-preview-card" id="video-card-${app.id}" onclick="devstore.toggleVideoPlay('${app.id}')">
+                <div class="video-poster-art" style="background: linear-gradient(135deg, ${app.iconBg} 0%, #030712 100%);">
+                  <div class="video-play-overlay-btn" aria-label="Play trailer">
+                    ${ICONS.play}
+                  </div>
+                  <div style="margin-top: 12px; font-size: 14px; font-weight: 600; color: #ffffff;">${this.escapeHtml(app.video ? app.video.title : `${app.name} Trailer`)}</div>
+                  <span class="video-duration-badge">${app.video ? app.video.duration : '0:45'}</span>
+                </div>
+                <div class="video-controls-bar">
+                  <div class="video-progress-track">
+                    <div class="video-progress-fill"></div>
+                  </div>
+                  <button class="video-ctrl-btn" onclick="event.stopPropagation(); devstore.toggleVideoPlay('${app.id}')">
+                    ${ICONS.play}
+                  </button>
+                  <button class="video-ctrl-btn" onclick="event.stopPropagation(); devstore.toggleVideoMute('${app.id}')">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- High-Resolution Screenshot Cards -->
+              ${screenshots.map((s, idx) => `
+                <div 
+                  class="detail-screenshot-card ${s.orientation || 'portrait'}" 
+                  onclick="devstore.openScreenshotLightbox('${app.id}', ${idx})"
+                  tabindex="0"
+                  role="button"
+                  aria-label="View screenshot: ${this.escapeHtml(s.title || `Screenshot ${idx + 1}`)}"
+                >
+                  <div style="width:100%; height:100%; background: linear-gradient(135deg, ${app.iconBg} 0%, #1e293b 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; color:#fff; text-align:center;">
+                    <div style="font-size: 32px; margin-bottom: 8px;">
+                      ${app.iconGlyph === 'chess' ? '♟️' : app.iconGlyph === 'calculate' ? '🧮' : app.iconGlyph === 'terminal' ? '💻' : '📱'}
+                    </div>
+                    <div style="font-size: 13px; font-weight: 600; line-height: 1.3;">
+                      ${this.escapeHtml(s.title || `Feature ${idx + 1}`)}
+                    </div>
+                  </div>
+                  <div class="screenshot-zoom-badge">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- Floating Next Button -->
+            <button class="media-track-arrow-btn" aria-label="Scroll media" onclick="document.getElementById('detail-media-track').scrollBy({left: 360, behavior: 'smooth'})">
+              ${ICONS.arrowRight}
+            </button>
+          </div>
+
+          <!-- About this app Section -->
+          <div class="detail-about-section">
+            <div class="detail-section-header-link" onclick="alert('Full description view')">
+              <h2 class="detail-section-title">
+                <span>About this app</span>
+                ${ICONS.arrowRight}
+              </h2>
+            </div>
+            <p class="detail-about-text">
+              ${this.escapeHtml(app.description || app.tagline || '')}
+            </p>
+
+            ${app.features && app.features.length > 0 ? `
+              <ul class="detail-features-list">
+                ${app.features.map(f => `<li class="detail-feature-item">${this.escapeHtml(f)}</li>`).join('')}
+              </ul>
+            ` : ''}
+
+            <div class="detail-tags-row">
+              <span class="detail-tag-chip">${this.escapeHtml(app.category || 'Utilities')}</span>
+              <span class="detail-tag-chip">Free & Open Source</span>
+              <span class="detail-tag-chip">Version ${this.escapeHtml(app.version || '1.0.0')}</span>
+              <span class="detail-tag-chip">${this.escapeHtml(app.size || '15 MB')}</span>
+              <span class="detail-tag-chip">Updated Oct 2026</span>
+            </div>
+          </div>
+
+          <!-- Data Safety Card (5 Security Pillars Matching Reference) -->
+          <div class="detail-safety-card">
+            <div class="safety-header">
+              ${ICONS.shield}
+              <span>Data safety</span>
+            </div>
+            <p class="safety-desc">
+              Safety starts with understanding how developers collect and share your data. Data privacy and security practices may vary based on your use, region, and age. The developer provided this information and may update it over time.
+            </p>
+
+            <div class="safety-points-box">
+              <div class="safety-point-row">
+                <div class="safety-point-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                </div>
+                <div class="safety-point-content">
+                  <span class="safety-point-title">No data shared with third parties</span>
+                  <span class="safety-point-subtitle">The developer says this app doesn't share user data with other companies or organizations</span>
+                </div>
+              </div>
+
+              <div class="safety-point-row">
+                <div class="safety-point-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+                </div>
+                <div class="safety-point-content">
+                  <span class="safety-point-title">No data collected</span>
+                  <span class="safety-point-subtitle">The developer states that zero telemetry or personal info is collected</span>
+                </div>
+              </div>
+
+              <div class="safety-point-row">
+                <div class="safety-point-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </div>
+                <div class="safety-point-content">
+                  <span class="safety-point-title">Data is encrypted in transit</span>
+                  <span class="safety-point-subtitle">Your connection to DevStore package repositories is secured over TLS 1.3</span>
+                </div>
+              </div>
+
+              <div class="safety-point-row">
+                <div class="safety-point-icon">
+                  ${ICONS.trash}
+                </div>
+                <div class="safety-point-content">
+                  <span class="safety-point-title">You can request that data be deleted</span>
+                  <span class="safety-point-subtitle">You have the right to request deletion of any stored reviews or account records</span>
+                </div>
+              </div>
+
+              <div class="safety-point-row">
+                <div class="safety-point-icon">
+                  ${ICONS.checkShield}
+                </div>
+                <div class="safety-point-content">
+                  <span class="safety-point-title">Independent security review</span>
+                  <span class="safety-point-subtitle">Verified against OWASP mobile security standards with zero known vulnerabilities</span>
+                </div>
+              </div>
+            </div>
+
+            <span class="safety-details-link" onclick="alert('All DevStore packages are verified open-source binaries.')">
+              See details
+            </span>
+          </div>
+
+          <!-- Ratings & Reviews Section (Breakdown + Device Filter Pills + User Reviews) -->
+          <div class="ratings-reviews-section">
+            <div class="ratings-reviews-header">
+              <h2 class="detail-section-title">
+                <span>Ratings and reviews</span>
+                ${ICONS.arrowRight}
+              </h2>
+              <span class="reviews-verified-badge">
+                Ratings and reviews are verified
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12" stroke="#fff" stroke-width="2"></line><line x1="12" y1="8" x2="12.01" y2="8" stroke="#fff" stroke-width="2"></line></svg>
+              </span>
+            </div>
+
+            <!-- Device Review Filter Pills -->
+            <div class="review-filter-pills-row">
+              <button class="review-filter-pill active" data-device="all" onclick="devstore.filterReviewsByDevice('all')">
+                <span>All devices</span>
+              </button>
+              <button class="review-filter-pill" data-device="phone" onclick="devstore.filterReviewsByDevice('phone')">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                <span>Phone</span>
+              </button>
+              <button class="review-filter-pill" data-device="desktop" onclick="devstore.filterReviewsByDevice('desktop')">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                <span>Desktop</span>
+              </button>
+              <button class="review-filter-pill" data-device="tablet" onclick="devstore.filterReviewsByDevice('tablet')">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                <span>Tablet</span>
+              </button>
+            </div>
+
+            <!-- 5-Star Rating Breakdown Chart -->
+            <div class="rating-breakdown-card">
+              <div class="rating-score-col">
+                <div class="big-rating-number">${app.rating ? app.rating.toFixed(1) : '4.8'}</div>
+                <div class="big-rating-stars">
+                  <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+                </div>
+                <span class="rating-total-count">${(app.reviewCount || 1000).toLocaleString()} reviews</span>
+              </div>
+
+              <div class="rating-bars-col">
+                ${[5, 4, 3, 2, 1].map(stars => `
+                  <div class="rating-bar-row">
+                    <span class="bar-star-num">${stars}</span>
+                    <div class="rating-bar-track">
+                      <div class="rating-bar-fill" style="width: ${distribution[stars] || 10}%;"></div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Community Reviews List -->
+            <div class="community-reviews-list" id="community-reviews-list">
+              ${this.generateReviewsListHtml(reviews)}
+            </div>
+
+            <button class="write-review-btn" onclick="devstore.openReviewModal('${app.id}')">
+              Write a review
+            </button>
+          </div>
+
         </div>
-        <p class="safety-desc">
-          Safety starts with understanding how developers collect and share your data. DevStore independently verifies that this package contains zero telemetry, requires no invasive background permissions, and transmits no analytics.
-        </p>
+
+        <!-- Detail Sidebar: Content Rating, App Support & More by Developer -->
+        <div class="detail-sidebar-col">
+          <!-- Content Rating Box -->
+          <div class="sidebar-box-card">
+            <div class="content-rating-box">
+              <div class="iarc-badge">3+</div>
+              <div class="content-rating-info">
+                <span class="content-rating-title">${app.contentRating || 'Rated for 3+'}</span>
+                <span class="content-rating-sub">Users Interact</span>
+                <span class="content-rating-link" onclick="alert('Content rating issued by IARC.')">Learn more</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- App Support Accordion -->
+          <div class="sidebar-box-card">
+            <div class="app-support-header" onclick="devstore.toggleAppSupportAccordion()">
+              <span>App support</span>
+              <svg id="support-accordion-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="app-support-details" id="app-support-details">
+              <div class="support-detail-item">
+                <span class="support-detail-lbl">Website</span>
+                <a href="${app.support ? app.support.website : 'https://devstore.org'}" target="_blank" rel="noopener" class="support-detail-link">
+                  ${app.support ? app.support.website : 'https://devstore.org'}
+                </a>
+              </div>
+              <div class="support-detail-item">
+                <span class="support-detail-lbl">Support Email</span>
+                <a href="mailto:${app.support ? app.support.email : 'support@devstore.org'}" class="support-detail-link">
+                  ${app.support ? app.support.email : 'support@devstore.org'}
+                </a>
+              </div>
+              <div class="support-detail-item">
+                <span class="support-detail-lbl">Address</span>
+                <span>${app.support ? app.support.address : '100 Open Source Way, Tech Park, CA'}</span>
+              </div>
+              <div class="support-detail-item">
+                <span class="support-detail-lbl">Privacy Policy</span>
+                <a href="${app.support ? app.support.privacyPolicy : 'https://devstore.org/privacy'}" target="_blank" rel="noopener" class="support-detail-link">
+                  Privacy Policy
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- More by Developer Section -->
+          <div class="sidebar-box-card">
+            <div class="detail-section-header-link" onclick="devstore.submitSearch('${this.escapeHtml(app.developer)}')">
+              <span style="font-size: 15px; font-weight: 500; color: #202124;">More by ${this.escapeHtml(app.developer)}</span>
+              ${ICONS.arrowRight}
+            </div>
+            <div class="sidebar-apps-list">
+              ${similarApps.map(sim => `
+                <div class="sidebar-app-item" onclick="devstore.selectApp('${sim.id}')">
+                  <div class="sidebar-app-icon" style="background-color: ${sim.iconBg}; color: ${sim.iconColor};">
+                    ${getGlyphSvg(sim.iconGlyph)}
+                  </div>
+                  <div class="sidebar-app-meta">
+                    <span class="sidebar-app-name">${this.escapeHtml(sim.name)}</span>
+                    <span class="sidebar-app-dev">${this.escapeHtml(sim.developer)}</span>
+                    <span class="sidebar-app-rating">${sim.rating.toFixed(1)} ★</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+        </div>
       </div>
     `;
 
     document.getElementById('detail-back-btn').addEventListener('click', () => this.backToCatalog());
-    document.getElementById('detail-install-cta').addEventListener('click', () => this.triggerDownload(appId));
+  }
+
+  generateReviewsListHtml(reviews) {
+    if (!reviews || reviews.length === 0) {
+      return `<p style="font-size: 13.5px; color: #5f6368;">No reviews matching this filter.</p>`;
+    }
+    return reviews.map(r => `
+      <div class="community-review-card">
+        <div class="review-author-row">
+          <div class="review-author-avatar" style="background-color: ${r.avatar || '#01875f'};">
+            ${r.author ? r.author.charAt(0) : 'U'}
+          </div>
+          <span class="review-author-name">${this.escapeHtml(r.author || 'User')}</span>
+        </div>
+        <div class="review-meta-row">
+          <div class="review-stars-display">
+            ${'★'.repeat(r.rating || 5)}
+          </div>
+          <span class="review-date-text">${this.escapeHtml(r.date || 'Recent')}</span>
+          ${r.device ? `<span class="review-device-tag">${this.escapeHtml(r.device)}</span>` : ''}
+        </div>
+        <p class="review-comment-text">${this.escapeHtml(r.comment || '')}</p>
+        <div class="review-helpful-row">
+          <span>Was this review helpful?</span>
+          <button class="helpful-thumbs-btn" id="helpful-btn-${r.id}" onclick="devstore.voteHelpfulReview('${r.id}')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+            Yes (<span class="helpful-count">${r.helpfulCount || 0}</span>)
+          </button>
+          <button class="helpful-thumbs-btn" onclick="alert('Thank you for your feedback!')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
+            No
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // --------------------------------------------------------------------------
+  // Full-Screen Screenshot Lightbox Gallery (Google Play Parity)
+  // --------------------------------------------------------------------------
+  openScreenshotLightbox(appId, index = 0) {
+    this.state.lightbox = { isOpen: true, appId, currentIndex: index };
+    this.renderLightbox();
+  }
+
+  renderLightbox() {
+    const { isOpen, appId, currentIndex } = this.state.lightbox;
+    if (!isOpen || !this.dom.screenshotLightboxModal) return;
+    const app = this.searchEngine.getAppById(appId);
+    if (!app) return;
+    const screenshots = app.screenshots || [];
+    const total = screenshots.length;
+    const current = screenshots[currentIndex] || screenshots[0] || { title: app.name, caption: '' };
+
+    this.dom.screenshotLightboxModal.innerHTML = `
+      <div class="lightbox-header-bar">
+        <button class="lightbox-back-btn" id="lightbox-back-btn" aria-label="Close screenshot gallery">
+          ${ICONS.back}
+        </button>
+        <div class="lightbox-title-counter">
+          ${this.escapeHtml(app.name)} &bull; ${currentIndex + 1} of ${total}
+        </div>
+        <button class="lightbox-close-btn" id="lightbox-close-x" aria-label="Close">
+          &times;
+        </button>
+      </div>
+
+      <div class="lightbox-stage-container">
+        ${total > 1 ? `
+          <button class="lightbox-nav-btn prev" id="lightbox-prev-btn" aria-label="Previous screenshot">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+        ` : ''}
+
+        <div class="lightbox-main-card">
+          <div class="lightbox-display-art" style="background: linear-gradient(135deg, ${app.iconBg} 0%, #0f172a 100%);">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px; gap: 16px;">
+              <div style="font-size: 64px;">${app.iconGlyph === 'chess' ? '♟️' : app.iconGlyph === 'calculate' ? '🧮' : app.iconGlyph === 'terminal' ? '💻' : '📱'}</div>
+              <div style="font-size: 24px; font-weight: 700; color: #ffffff; text-align: center;">${this.escapeHtml(current.title || app.name)}</div>
+              <div style="font-size: 14px; color: #94a3b8; max-width: 480px; text-align: center;">${this.escapeHtml(current.caption || '')}</div>
+            </div>
+          </div>
+        </div>
+
+        ${total > 1 ? `
+          <button class="lightbox-nav-btn next" id="lightbox-next-btn" aria-label="Next screenshot">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+        ` : ''}
+      </div>
+
+      <div class="lightbox-footer-caption">
+        <div class="lightbox-caption-title">${this.escapeHtml(current.title || app.name)}</div>
+        <div class="lightbox-caption-sub">${this.escapeHtml(current.caption || '')}</div>
+      </div>
+    `;
+
+    this.dom.screenshotLightboxModal.classList.add('open');
+
+    document.getElementById('lightbox-back-btn').addEventListener('click', () => this.closeScreenshotLightbox());
+    document.getElementById('lightbox-close-x').addEventListener('click', () => this.closeScreenshotLightbox());
+    const prevBtn = document.getElementById('lightbox-prev-btn');
+    if (prevBtn) prevBtn.addEventListener('click', () => this.navigateLightbox(-1));
+    const nextBtn = document.getElementById('lightbox-next-btn');
+    if (nextBtn) nextBtn.addEventListener('click', () => this.navigateLightbox(1));
+  }
+
+  closeScreenshotLightbox() {
+    this.state.lightbox.isOpen = false;
+    if (this.dom.screenshotLightboxModal) {
+      this.dom.screenshotLightboxModal.classList.remove('open');
+      this.dom.screenshotLightboxModal.innerHTML = '';
+    }
+  }
+
+  navigateLightbox(direction) {
+    const { appId, currentIndex } = this.state.lightbox;
+    const app = this.searchEngine.getAppById(appId);
+    if (!app || !app.screenshots || app.screenshots.length === 0) return;
+    const total = app.screenshots.length;
+    const nextIndex = (currentIndex + direction + total) % total;
+    this.state.lightbox.currentIndex = nextIndex;
+    this.renderLightbox();
+  }
+
+  // --------------------------------------------------------------------------
+  // Video Player Trailer Simulation
+  // --------------------------------------------------------------------------
+  toggleVideoPlay(appId) {
+    const state = this.state.videoState[appId] || { isPlaying: false, isMuted: true, progress: 0 };
+    state.isPlaying = !state.isPlaying;
+    this.state.videoState[appId] = state;
+
+    const card = document.getElementById(`video-card-${appId}`);
+    if (!card) return;
+    const overlayBtn = card.querySelector('.video-play-overlay-btn');
+    const progressFill = card.querySelector('.video-progress-fill');
+
+    if (state.isPlaying) {
+      if (overlayBtn) {
+        overlayBtn.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+      }
+      if (state.timer) clearInterval(state.timer);
+      state.timer = setInterval(() => {
+        state.progress = (state.progress + 2) % 100;
+        if (progressFill) progressFill.style.width = `${state.progress}%`;
+      }, 200);
+    } else {
+      if (overlayBtn) overlayBtn.innerHTML = ICONS.play;
+      if (state.timer) clearInterval(state.timer);
+    }
+  }
+
+  toggleVideoMute(appId) {
+    const state = this.state.videoState[appId] || { isPlaying: false, isMuted: true, progress: 0 };
+    state.isMuted = !state.isMuted;
+    this.state.videoState[appId] = state;
+    alert(state.isMuted ? 'Video audio muted' : 'Video audio unmuted');
+  }
+
+  // --------------------------------------------------------------------------
+  // Interactive Animated Install State Simulation
+  // --------------------------------------------------------------------------
+  startInstallSimulation(appId) {
+    const app = this.searchEngine.getAppById(appId);
+    if (!app) return;
+    const btn = document.getElementById('detail-install-cta');
+    if (!btn) return;
+
+    btn.classList.add('installing');
+    btn.innerHTML = `<div class="install-spinner"></div> <span>Installing 0%</span>`;
+
+    let percent = 0;
+    const interval = setInterval(() => {
+      percent += Math.floor(Math.random() * 20) + 15;
+      if (percent >= 100) {
+        percent = 100;
+        clearInterval(interval);
+        btn.innerHTML = `<div class="install-spinner"></div> <span>Installing 100%</span>`;
+        setTimeout(() => {
+          if (this.user) {
+            if (!this.user.installedApps) this.user.installedApps = [];
+            if (!this.user.installedApps.includes(appId)) {
+              this.user.installedApps.push(appId);
+              try {
+                localStorage.setItem('devstore_user', JSON.stringify(this.user));
+              } catch (e) {
+                console.warn(e);
+              }
+            }
+          }
+          btn.classList.remove('installing');
+          btn.classList.add('installed');
+          btn.innerHTML = `Open`;
+          btn.onclick = () => alert(`Launching ${app.name}...`);
+
+          const ctaRow = document.getElementById('detail-cta-row');
+          if (ctaRow && !document.getElementById('detail-uninstall-btn')) {
+            const unBtn = document.createElement('button');
+            unBtn.className = 'detail-action-btn';
+            unBtn.id = 'detail-uninstall-btn';
+            unBtn.textContent = 'Uninstall';
+            unBtn.onclick = () => devstore.uninstallApp(appId);
+            ctaRow.insertBefore(unBtn, ctaRow.children[1]);
+          }
+        }, 350);
+      } else {
+        btn.innerHTML = `<div class="install-spinner"></div> <span>Installing ${percent}%</span>`;
+      }
+    }, 150);
+  }
+
+  uninstallApp(appId) {
+    if (this.user && this.user.installedApps) {
+      this.user.installedApps = this.user.installedApps.filter(id => id !== appId);
+      try {
+        localStorage.setItem('devstore_user', JSON.stringify(this.user));
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+    this.renderDetailView(appId);
+  }
+
+  // --------------------------------------------------------------------------
+  // Reviews Filtering, Voting, and Write Review Flow
+  // --------------------------------------------------------------------------
+  filterReviewsByDevice(device) {
+    this.state.reviewDeviceFilter = device;
+    const appId = this.state.activeAppId;
+    if (!appId) return;
+    const app = this.searchEngine.getAppById(appId);
+    if (!app) return;
+    const listEl = document.getElementById('community-reviews-list');
+    if (!listEl) return;
+
+    document.querySelectorAll('.review-filter-pill').forEach(pill => {
+      if (pill.getAttribute('data-device') === device) {
+        pill.classList.add('active');
+      } else {
+        pill.classList.remove('active');
+      }
+    });
+
+    const filtered = (app.reviews || []).filter(r => device === 'all' || (r.device && r.device.toLowerCase() === device.toLowerCase()));
+    listEl.innerHTML = this.generateReviewsListHtml(filtered);
+  }
+
+  voteHelpfulReview(reviewId) {
+    const btn = document.getElementById(`helpful-btn-${reviewId}`);
+    if (!btn || btn.classList.contains('voted')) return;
+    const countSpan = btn.querySelector('.helpful-count');
+    let current = parseInt(countSpan.textContent, 10) || 0;
+    countSpan.textContent = current + 1;
+    btn.classList.add('voted');
+  }
+
+  toggleAppSupportAccordion() {
+    this.state.supportAccordionOpen = !this.state.supportAccordionOpen;
+    const details = document.getElementById('app-support-details');
+    const arrow = document.getElementById('support-accordion-arrow');
+    if (details) {
+      if (this.state.supportAccordionOpen) {
+        details.classList.add('open');
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+      } else {
+        details.classList.remove('open');
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
+      }
+    }
+  }
+
+  openReviewModal(appId) {
+    const app = this.searchEngine.getAppById(appId);
+    if (!app || !this.dom.reviewModal) return;
+
+    this.dom.reviewModal.innerHTML = `
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 class="modal-title">Rate & Review ${this.escapeHtml(app.name)}</h3>
+          <button class="modal-close-btn" id="review-close-x">&times;</button>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin: 16px 0;" id="review-star-picker">
+          ${[1, 2, 3, 4, 5].map(star => `
+            <button class="star-pick-btn" data-star="${star}" style="background: none; border: none; font-size: 32px; cursor: pointer; color: #01875f;">★</button>
+          `).join('')}
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label style="font-size: 13px; font-weight: 500; color: #5f6368; display: block; margin-bottom: 6px;">Your Review</label>
+          <textarea id="review-comment-input" rows="4" style="width: 100%; border: 1px solid #dadce0; border-radius: 8px; padding: 10px; font-family: inherit; font-size: 14px;" placeholder="Tell other users what you think of this application..."></textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button class="detail-share-btn" id="review-cancel-btn">Cancel</button>
+          <button class="detail-install-btn" id="review-submit-btn">Post</button>
+        </div>
+      </div>
+    `;
+
+    this.dom.reviewModal.classList.add('open');
+
+    let selectedRating = 5;
+    const stars = this.dom.reviewModal.querySelectorAll('.star-pick-btn');
+    const updateStars = (val) => {
+      selectedRating = val;
+      stars.forEach((s, idx) => {
+        s.style.color = idx < val ? '#01875f' : '#dadce0';
+      });
+    };
+    updateStars(5);
+
+    stars.forEach(s => {
+      s.addEventListener('click', () => updateStars(parseInt(s.getAttribute('data-star'), 10)));
+    });
+
+    const close = () => this.dom.reviewModal.classList.remove('open');
+    document.getElementById('review-close-x').addEventListener('click', close);
+    document.getElementById('review-cancel-btn').addEventListener('click', close);
+    document.getElementById('review-submit-btn').addEventListener('click', () => {
+      const text = document.getElementById('review-comment-input').value.trim();
+      if (!text) {
+        alert('Please enter your review comment.');
+        return;
+      }
+      const newReview = {
+        id: `rev-user-${Date.now()}`,
+        author: this.user ? this.user.name : 'You',
+        avatar: this.user ? this.user.avatarBg : '#01875f',
+        rating: selectedRating,
+        date: 'October 22, 2026',
+        device: 'Desktop',
+        helpfulCount: 0,
+        comment: text
+      };
+      if (!app.reviews) app.reviews = [];
+      app.reviews.unshift(newReview);
+      close();
+      this.renderDetailView(appId);
+    });
+  }
+
+  shareApp(appId) {
+    const url = `${window.location.origin}${window.location.pathname}?id=${appId}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).catch(() => {});
+    }
+    alert(`Link copied to clipboard!\n${url}`);
+  }
+
+  toggleWishlist(appId) {
+    if (!this.user) {
+      this.openSignInModal();
+      return;
+    }
+    if (!this.user.wishlist) this.user.wishlist = [];
+    const idx = this.user.wishlist.indexOf(appId);
+    const btn = document.getElementById('detail-wishlist-btn');
+    if (idx > -1) {
+      this.user.wishlist.splice(idx, 1);
+      if (btn) btn.innerHTML = `${ICONS.playPass} <span>Add to wishlist</span>`;
+      alert('Removed from your wishlist.');
+    } else {
+      this.user.wishlist.push(appId);
+      if (btn) btn.innerHTML = `${ICONS.checkShield} <span>In wishlist</span>`;
+      alert('Saved to your wishlist!');
+    }
+    try {
+      localStorage.setItem('devstore_user', JSON.stringify(this.user));
+    } catch (e) {
+      console.warn(e);
+    }
   }
 
   triggerDownload(appId) {
-    const app = this.searchEngine.getAppById(appId);
-    if (!app) return;
-
-    if (this.dom.downloadModal) {
-      this.dom.downloadModal.innerHTML = `
-        <div class="modal-dialog">
-          <div class="modal-header">
-            <h3 class="modal-title">Ready to Install ${this.escapeHtml(app.name)}</h3>
-            <button class="modal-close-btn" id="modal-close-x">&times;</button>
-          </div>
-          <p style="font-size:14px; color:#5f6368; margin-bottom:16px;">
-            Package verification complete. Size: ${app.size || '12 MB'}. Zero telemetry detected.
-          </p>
-          <div style="display:flex; justify-content:flex-end; gap:8px;">
-            <button class="detail-share-btn" id="modal-cancel-btn">Cancel</button>
-            <button class="detail-install-btn" id="modal-confirm-btn">Download Now</button>
-          </div>
-        </div>
-      `;
-      this.dom.downloadModal.classList.add('open');
-
-      const closeModal = () => this.dom.downloadModal.classList.remove('open');
-      document.getElementById('modal-close-x').addEventListener('click', closeModal);
-      document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
-      document.getElementById('modal-confirm-btn').addEventListener('click', () => {
-        closeModal();
-        if (this.user) {
-          if (!this.user.installedApps) this.user.installedApps = [];
-          if (!this.user.installedApps.includes(appId)) {
-            this.user.installedApps.push(appId);
-            try {
-              localStorage.setItem('devstore_user', JSON.stringify(this.user));
-            } catch (e) {
-              console.warn('Failed to update user installed apps:', e);
-            }
-          }
-        }
-        alert(`Starting download for ${app.name} (${app.size || '12 MB'}). App added to your DevStore library!`);
-      });
-    }
+    this.startInstallSimulation(appId);
   }
 
   // --------------------------------------------------------------------------
