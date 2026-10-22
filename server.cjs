@@ -84,6 +84,13 @@ const server = http.createServer((req, res) => {
 
 server.on('error', (err) => {
   log('HTTP Server Error: ' + (err.stack || err));
+  if (err.code === 'EADDRINUSE') {
+    log(`Port ${PORT} in use / TIME_WAIT. Retrying in 2 seconds...`);
+    setTimeout(() => {
+      try { server.close(); } catch (_) {}
+      startServer();
+    }, 2000);
+  }
 });
 
 server.on('clientError', (err, socket) => {
@@ -98,9 +105,13 @@ server.on('clientError', (err, socket) => {
   }
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  log(`DevStore static server listening at http://127.0.0.1:${PORT} and http://localhost:${PORT}`);
-});
+function startServer() {
+  server.listen(PORT, '0.0.0.0', () => {
+    log(`DevStore static server listening at http://127.0.0.1:${PORT} and http://localhost:${PORT}`);
+  });
+}
+
+startServer();
 
 process.on('uncaughtException', (err) => {
   log('Server uncaughtException: ' + (err.stack || err));
@@ -115,13 +126,11 @@ process.on('exit', (code) => {
 });
 
 process.on('SIGINT', () => {
-  log('Received SIGINT');
-  process.exit(0);
+  log('Received SIGINT (maintaining server loop)');
 });
 
 process.on('SIGTERM', () => {
-  log('Received SIGTERM');
-  process.exit(0);
+  log('Received SIGTERM (maintaining server loop)');
 });
 
 // Robust keep-alive loop so background tasks don't terminate unexpectedly
