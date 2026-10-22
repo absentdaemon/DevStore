@@ -9,12 +9,11 @@ const logStream = fs.createWriteStream(path.join(BASE_DIR, 'server.log'), { flag
 function log(msg) {
   const line = `[${new Date().toISOString()}] ${msg}\n`;
   try { process.stdout.write(line); } catch (_) {}
-  try { logStream.write(line); } catch (_) {}
+  try { fs.appendFileSync(path.join(BASE_DIR, 'server.log'), line); } catch (_) {}
 }
 
 process.stdout.on('error', () => {});
 process.stderr.on('error', () => {});
-
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -29,6 +28,13 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
+  req.on('error', (err) => {
+    log('Request error: ' + err.message);
+  });
+  res.on('error', (err) => {
+    log('Response error: ' + err.message);
+  });
+
   let reqPath = req.url.split('?')[0];
   if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
 
@@ -51,13 +57,22 @@ const server = http.createServer((req, res) => {
 
     res.writeHead(200, {
       'Content-Type': contentType,
+      'Content-Length': stats.size,
       'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'no-cache'
     });
 
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+
     const stream = fs.createReadStream(safePath);
+    req.on('close', () => {
+      stream.destroy();
+    });
     stream.on('error', (streamErr) => {
-      console.error('Stream error:', streamErr);
+      log('Stream error: ' + streamErr.message);
       if (!res.headersSent) {
         res.writeHead(500);
         res.end('Internal Server Error');
@@ -83,8 +98,8 @@ server.on('clientError', (err, socket) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  log(`DevStore static server listening at http://127.0.0.1:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  log(`DevStore static server listening at http://127.0.0.1:${PORT} and http://localhost:${PORT}`);
 });
 
 process.on('uncaughtException', (err) => {
