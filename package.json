@@ -5,6 +5,7 @@
   "main": "server.cjs",
   "scripts": {
     "start": "node server.cjs",
+    "build": "node scripts/build.cjs",
     "test": "node tests/run-all-tests.mjs",
     "test:security": "node tests/test-server-security.mjs",
     "test:backend": "node tests/test-backend-roles.mjs",
