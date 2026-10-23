@@ -13,6 +13,7 @@ const testSuites = [
   { name: 'Search Engine Unit Tests', script: 'tests/test-search-engine.mjs' },
   { name: 'Server Security & HTTP Hardening', script: 'tests/test-server-security.mjs' },
   { name: 'Catalog Download & Assets Audit', script: 'tests/validate-downloads.mjs' },
+  { name: 'Phase 9A Backend, Accounts & Roles', script: 'tests/test-backend-roles.mjs' },
   { name: 'Real Headless Chrome Browser Integration', script: 'tests/test-browser-integration.mjs' }
 ];
 
@@ -55,5 +56,5 @@ if (!allPassed) {
   console.error('\nOne or more test suites failed.');
   process.exit(1);
 } else {
-  console.log('\nAll 7 test suites passed successfully with 100% integrity!');
+  console.log(`\nAll ${testSuites.length} test suites passed successfully with 100% integrity!`);
 }

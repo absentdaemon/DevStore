@@ -3050,4 +3050,311 @@
   }
 }
 
+/* ==========================================================================
+   Phase 9A — Authentication Tabs & Role Portals
+   ========================================================================== */
+
+.signin-tabs-nav {
+  display: flex;
+  border-bottom: 1px solid #dadce0;
+  margin-bottom: 16px;
+  gap: 8px;
+}
+
+.signin-tab-btn {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5f6368;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.signin-tab-btn:hover {
+  color: #202124;
+}
+
+.signin-tab-btn.active {
+  color: var(--play-green);
+  border-bottom-color: var(--play-green);
+  font-weight: 600;
+}
+
+.backend-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.backend-status-banner.configured {
+  background-color: #e6f4ea;
+  color: #137333;
+  border: 1px solid #ceead6;
+}
+
+.backend-status-banner.unconfigured {
+  background-color: #fef7e0;
+  color: #b06000;
+  border: 1px solid #feefc3;
+}
+
+/* Developer Console Dialog */
+.developer-portal-dialog {
+  background-color: #ffffff;
+  border-radius: 28px;
+  box-shadow: 0 12px 48px rgba(60, 64, 67, 0.3);
+  width: 100%;
+  max-width: 860px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-dashboard-dialog {
+  background-color: #ffffff;
+  border-radius: 28px;
+  box-shadow: 0 12px 48px rgba(60, 64, 67, 0.3);
+  width: 100%;
+  max-width: 920px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.portal-dialog-header {
+  padding: 24px 28px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.portal-dialog-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #202124;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.portal-tabs-nav {
+  display: flex;
+  padding: 0 28px;
+  border-bottom: 1px solid #dadce0;
+  background-color: #fafafa;
+  gap: 16px;
+  overflow-x: auto;
+}
+
+.portal-tab-btn {
+  background: none;
+  border: none;
+  padding: 14px 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #5f6368;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.portal-tab-btn:hover {
+  color: #202124;
+}
+
+.portal-tab-btn.active {
+  color: var(--play-green);
+  border-bottom-color: var(--play-green);
+  font-weight: 600;
+}
+
+.portal-body {
+  padding: 24px 28px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Status Pills */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  text-transform: capitalize;
+}
+
+.status-pill.published,
+.status-pill.approved {
+  background-color: #e6f4ea;
+  color: #137333;
+  border: 1px solid #ceead6;
+}
+
+.status-pill.pending {
+  background-color: #fef7e0;
+  color: #b06000;
+  border: 1px solid #feefc3;
+}
+
+.status-pill.draft {
+  background-color: #f1f3f4;
+  color: #5f6368;
+  border: 1px solid #dadce0;
+}
+
+.status-pill.rejected,
+.status-pill.suspended {
+  background-color: #fce8e6;
+  color: #c5221f;
+  border: 1px solid #fad2cf;
+}
+
+/* Form Styles */
+.portal-form-group {
+  margin-bottom: 18px;
+}
+
+.portal-form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3c4043;
+  margin-bottom: 6px;
+}
+
+.portal-form-hint {
+  font-size: 12px;
+  color: #5f6368;
+  margin-top: 4px;
+}
+
+.portal-input,
+.portal-select,
+.portal-textarea {
+  width: 100%;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #202124;
+  font-family: inherit;
+  background-color: #ffffff;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.portal-input:focus,
+.portal-select:focus,
+.portal-textarea:focus {
+  border-color: var(--play-green);
+}
+
+.portal-upload-zone {
+  border: 2px dashed #dadce0;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  background-color: #fafafa;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.portal-upload-zone:hover,
+.portal-upload-zone.dragover {
+  border-color: var(--play-green);
+  background-color: #e6f4ea;
+}
+
+.checksum-display-box {
+  background-color: #f8f9fa;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 8px;
+}
+
+.checksum-hash-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: #1e293b;
+  word-break: break-all;
+  user-select: all;
+}
+
+/* Cards & Grid */
+.portal-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.portal-item-card {
+  border: 1px solid #dadce0;
+  border-radius: 12px;
+  padding: 16px;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: box-shadow var(--transition-fast);
+}
+
+.portal-item-card:hover {
+  box-shadow: 0 4px 12px rgba(60, 64, 67, 0.12);
+}
+
+.portal-item-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #202124;
+}
+
+/* Audit Log Table */
+.audit-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #dadce0;
+  border-radius: 12px;
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.audit-table th {
+  background-color: #f8f9fa;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #3c4043;
+  border-bottom: 1px solid #dadce0;
+}
+
+.audit-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f3f4;
+  color: #202124;
+}
+
+.audit-table tr:last-child td {
+  border-bottom: none;
+}
+
 

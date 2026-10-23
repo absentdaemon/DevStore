@@ -221,6 +221,11 @@
   <!-- Google Play Style Manage Apps & Device Modal Dialog -->
   <div class="modal-backdrop" id="manage-apps-modal" role="dialog" aria-modal="true" aria-label="Manage apps and device"></div>
 
+  <!-- Developer Console Modal Dialog -->
+  <div class="modal-backdrop" id="developer-portal-modal" role="dialog" aria-modal="true" aria-label="Developer Console"></div>
+
+  <!-- Admin Moderation Dashboard Modal Dialog -->
+  <div class="modal-backdrop" id="admin-dashboard-modal" role="dialog" aria-modal="true" aria-label="Admin Moderation Dashboard"></div>
 
   <!-- DevStore Notifications Mount Point -->
   <div class="store-notifications-container" id="store-notifications" role="region" aria-label="DevStore Notifications" aria-live="polite"></div>
@@ -240,7 +245,7 @@
         </div>
         <div class="footer-col">
           <span class="footer-col-title">Developers</span>
-          <a href="#developer-console" onclick="devstore.showFooterInfo('developer-console')">DevStore Console</a>
+          <a href="#developer-console" onclick="devstore.openDeveloperPortal()">DevStore Console</a>
           <a href="#documentation" onclick="devstore.showFooterInfo('documentation')">Developer Documentation</a>
           <a href="#package-policy" onclick="devstore.showFooterInfo('package-policy')">Package Standards</a>
         </div>
@@ -257,6 +262,10 @@
       </div>
     </div>
   </footer>
+
+  <!-- Supabase Vendor & Client Configuration -->
+  <script src="js/vendor/supabase.js"></script>
+  <script src="config.js"></script>
 
   <!-- Application Module Bootstrap -->
   <script type="module">

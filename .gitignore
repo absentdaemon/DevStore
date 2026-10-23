@@ -5,3 +5,7 @@ node_out.txt
 .DS_Store
 Thumbs.db
 .test_chrome_profile/
+.env
+.env.local
+config.js
+config.local.js

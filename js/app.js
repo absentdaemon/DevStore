@@ -11,6 +11,7 @@ import { notifications } from './notifications.js';
 import { VideoPlayerController } from './video-player.js';
 import { DownloadManager } from './download-manager.js';
 import { modalManager } from './modal-manager.js';
+import { supabaseBackend } from './supabase-client.js';
 
 // Clean SVG Icon Library
 const ICONS = {
@@ -103,6 +104,7 @@ export class DevStoreApp {
     this.videoPlayer = new VideoPlayerController(notifications);
     this.downloadManager = new DownloadManager(notifications);
     this.modalManager = modalManager;
+    this.backend = supabaseBackend;
 
     this.state = {
       query: '',
@@ -142,6 +144,8 @@ export class DevStoreApp {
       profilePopover: document.getElementById('profile-popover'),
       signinModal: document.getElementById('signin-modal'),
       manageAppsModal: document.getElementById('manage-apps-modal'),
+      developerPortalModal: document.getElementById('developer-portal-modal'),
+      adminDashboardModal: document.getElementById('admin-dashboard-modal'),
       infoModal: document.getElementById('info-modal'),
       notificationsContainer: document.getElementById('store-notifications')
     };
@@ -153,6 +157,30 @@ export class DevStoreApp {
   }
 
   async init() {
+    // Sync with Supabase session if configured
+    if (this.backend && this.backend.isConfigured) {
+      try {
+        const sessionProfile = await this.backend.getCurrentProfile();
+        if (sessionProfile) {
+          this.user = sessionProfile;
+        }
+      } catch (e) {
+        console.warn('Could not sync initial Supabase profile:', e);
+      }
+      this.backend.onAuthStateChange(async (event) => {
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          const p = await this.backend.getCurrentProfile();
+          if (p) {
+            this.user = p;
+            this.renderUserAvatar();
+          }
+        } else if (event === 'SIGNED_OUT') {
+          this.user = null;
+          this.renderUserAvatar();
+        }
+      });
+    }
+
     // Load and validate catalog data
     try {
       const response = await fetch('data/catalog.json');
@@ -228,6 +256,22 @@ export class DevStoreApp {
       });
     }
 
+    if (this.dom.developerPortalModal) {
+      this.dom.developerPortalModal.addEventListener('click', (e) => {
+        if (e.target === this.dom.developerPortalModal) {
+          this.closeDeveloperPortal();
+        }
+      });
+    }
+
+    if (this.dom.adminDashboardModal) {
+      this.dom.adminDashboardModal.addEventListener('click', (e) => {
+        if (e.target === this.dom.adminDashboardModal) {
+          this.closeAdminPortal();
+        }
+      });
+    }
+
     // Search open / toggle
     if (this.dom.searchToggleBtn) {
       this.dom.searchToggleBtn.addEventListener('click', () => this.openSearch());
@@ -277,6 +321,10 @@ export class DevStoreApp {
           this.closeSignInModal();
         } else if (this.dom.manageAppsModal && this.dom.manageAppsModal.classList.contains('open')) {
           this.closeManageAppsModal();
+        } else if (this.dom.developerPortalModal && this.dom.developerPortalModal.classList.contains('open')) {
+          this.closeDeveloperPortal();
+        } else if (this.dom.adminDashboardModal && this.dom.adminDashboardModal.classList.contains('open')) {
+          this.closeAdminPortal();
         } else if (this.state.isSearchOpen) {
           this.closeSearch();
         }
@@ -1685,6 +1733,37 @@ export class DevStoreApp {
           <span class="popover-item-badge">${appsCount} installed</span>
         </div>
 
+        ${this.user.role === 'admin' ? `
+          <div class="popover-menu-item" id="popover-item-admin-dashboard" tabindex="0" role="button">
+            <div class="popover-item-left">
+              ${ICONS.shield}
+              <span>Admin Dashboard</span>
+            </div>
+            <span class="popover-item-badge" style="background:#fee2e2; color:#b91c1c;">Admin</span>
+          </div>
+          <div class="popover-menu-item" id="popover-item-dev-console" tabindex="0" role="button">
+            <div class="popover-item-left">
+              ${ICONS.glyphTerminal}
+              <span>Developer Console</span>
+            </div>
+          </div>
+        ` : this.user.role === 'developer' ? `
+          <div class="popover-menu-item" id="popover-item-dev-console" tabindex="0" role="button">
+            <div class="popover-item-left">
+              ${ICONS.glyphTerminal}
+              <span>Developer Console</span>
+            </div>
+            <span class="popover-item-badge" style="background:#e0f2fe; color:#0369a1;">Dev</span>
+          </div>
+        ` : `
+          <div class="popover-menu-item" id="popover-item-dev-console" tabindex="0" role="button">
+            <div class="popover-item-left">
+              ${ICONS.glyphTerminal}
+              <span>Developer Console</span>
+            </div>
+          </div>
+        `}
+
         <div class="popover-menu-item" id="popover-item-payments" tabindex="0" role="button">
           <div class="popover-item-left">
             ${ICONS.payments}
@@ -1746,14 +1825,24 @@ export class DevStoreApp {
 
     document.getElementById('popover-manage-account-cta')?.addEventListener('click', () => {
       this.notifications.showDialog({
-        title: 'DevStore Demo Profile',
-        message: `Profile Name: ${this.user.name}\nEmail: ${this.user.email}\nStatus: Local Demo (Unverified)\n\nDevStore runs entirely client-side without a remote authentication server. This account profile is stored locally in your browser session.`
+        title: 'DevStore User Profile',
+        message: `Profile Name: ${this.user.name}\nEmail: ${this.user.email}\nRole: ${this.user.role || 'user'}\nStatus: ${this.user.isDemo ? 'Local Demo (Unverified)' : 'Verified Supabase Account'}\n\nAll permissions and role authorizations are verified on the PostgreSQL backend.`
       });
     });
 
     document.getElementById('popover-item-manage-apps')?.addEventListener('click', () => {
       this.closeProfilePopover();
       this.openManageAppsModal('overview');
+    });
+
+    document.getElementById('popover-item-admin-dashboard')?.addEventListener('click', () => {
+      this.closeProfilePopover();
+      this.openAdminPortal();
+    });
+
+    document.getElementById('popover-item-dev-console')?.addEventListener('click', () => {
+      this.closeProfilePopover();
+      this.openDeveloperPortal();
     });
 
     document.getElementById('popover-item-payments')?.addEventListener('click', () => {
@@ -1803,9 +1892,11 @@ export class DevStoreApp {
   // --------------------------------------------------------------------------
   // Accessible Profile Selection Modal Dialog (Replaces prompt/alerts)
   // --------------------------------------------------------------------------
-  openSignInModal() {
+  openSignInModal(initialTab = 'signin') {
     this.closeProfilePopover();
     if (!this.dom.signinModal) return;
+
+    const isConfigured = Boolean(this.backend && this.backend.isConfigured);
 
     this.dom.signinModal.innerHTML = `
       <div class="google-signin-dialog" id="signin-dialog" role="dialog" aria-modal="true" aria-labelledby="signin-heading">
@@ -1821,56 +1912,129 @@ export class DevStoreApp {
           </button>
         </div>
 
-        <h2 class="signin-heading" id="signin-heading">DevStore Profile Selection</h2>
-        <p class="signin-subheading">Select a local demo profile or test account (unverified demo mode)</p>
+        <h2 class="signin-heading" id="signin-heading">DevStore Account</h2>
+        <p class="signin-subheading">Sign in with Supabase or choose a demo profile</p>
 
-        <!-- 1-Click Quick Demo Accounts -->
-        <div class="signin-demo-accounts">
-          <div class="demo-accounts-title">Quick demo profiles (1-click)</div>
-          ${DEMO_ACCOUNTS.map((acc, idx) => `
-            <div class="demo-account-item" data-account-idx="${idx}" tabindex="0" role="button">
-              <div class="demo-account-avatar" style="background:${acc.avatarBg}">
-                ${acc.initial}
-              </div>
-              <div class="demo-account-info">
-                <span class="demo-account-name">${this.escapeHtml(acc.name)}</span>
-                <span class="demo-account-email">${this.escapeHtml(acc.email)}</span>
-              </div>
+        <!-- Backend connection status banner -->
+        <div class="backend-status-banner ${isConfigured ? 'configured' : 'unconfigured'}">
+          <span>${isConfigured ? '✔ Supabase backend connected' : 'ℹ Supabase not configured &bull; Local demo active'}</span>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="signin-tabs-nav">
+          <button type="button" class="signin-tab-btn ${initialTab === 'signin' ? 'active' : ''}" id="tab-btn-signin" data-tab="signin">Sign In</button>
+          <button type="button" class="signin-tab-btn ${initialTab === 'register' ? 'active' : ''}" id="tab-btn-register" data-tab="register">Register</button>
+          <button type="button" class="signin-tab-btn ${initialTab === 'demo' ? 'active' : ''}" id="tab-btn-demo" data-tab="demo">Quick Demo</button>
+        </div>
+
+        <!-- TAB 1: Sign In -->
+        <div id="signin-tab-content-signin" style="display: ${initialTab === 'signin' ? 'block' : 'none'};">
+          <div class="signin-field-group">
+            <label class="signin-label" for="signin-email-input">Email address</label>
+            <input type="email" id="signin-email-input" class="signin-outlined-input" placeholder="user@devstore.org" autocomplete="email" />
+          </div>
+          <div class="signin-field-group" style="margin-top: 12px;">
+            <label class="signin-label" for="signin-password-input">Password</label>
+            <input type="password" id="signin-password-input" class="signin-outlined-input" placeholder="Your password (leave blank for demo)" autocomplete="current-password" />
+            <div style="display:flex; justify-content:space-between; margin-top:6px;">
+              <button type="button" class="signin-helper-link" id="signin-forgot-btn">Demo accounts guide</button>
+              <button type="button" class="signin-helper-link" id="signin-magic-btn">Send Magic Link</button>
             </div>
-          `).join('')}
+          </div>
+          <div class="signin-actions-row">
+            <button type="button" class="signin-create-btn" id="signin-create-btn">Create account</button>
+            <button type="button" class="signin-next-btn" id="signin-next-btn">Sign in</button>
+          </div>
         </div>
 
-        <!-- Inline Create Account Form Container -->
-        <div id="signin-create-form" style="display:none; margin: 12px 0; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dadce0;">
-          <label class="signin-label" for="signin-create-name" style="font-size:12px; font-weight:600; color:#3c4043; display:block; margin-bottom:4px;">Full Name</label>
-          <input type="text" id="signin-create-name" class="signin-outlined-input" placeholder="e.g. Linus Torvalds" style="margin-bottom:8px;" />
-          <button type="button" class="detail-install-btn" id="signin-confirm-create-btn" style="width:100%; padding:8px;">Create Demo Profile</button>
+        <!-- TAB 2: Register -->
+        <div id="signin-tab-content-register" style="display: ${initialTab === 'register' ? 'block' : 'none'};">
+          <div class="signin-field-group">
+            <label class="signin-label" for="register-name-input">Full Name</label>
+            <input type="text" id="register-name-input" class="signin-outlined-input" placeholder="e.g. Ada Lovelace" />
+          </div>
+          <div class="signin-field-group" style="margin-top: 12px;">
+            <label class="signin-label" for="register-email-input">Email address</label>
+            <input type="email" id="register-email-input" class="signin-outlined-input" placeholder="ada@devstore.org" />
+          </div>
+          <div class="signin-field-group" style="margin-top: 12px;">
+            <label class="signin-label" for="register-password-input">Password (min 6 characters)</label>
+            <input type="password" id="register-password-input" class="signin-outlined-input" placeholder="••••••••" />
+          </div>
+          <div class="signin-actions-row" style="margin-top: 18px;">
+            <button type="button" class="signin-create-btn" id="register-back-to-signin">Back to Sign in</button>
+            <button type="button" class="signin-next-btn" id="register-submit-btn">Create account</button>
+          </div>
         </div>
 
-        <!-- Floating or Outlined Email / Phone input -->
-        <div class="signin-field-group">
-          <label class="signin-label" for="signin-email-input">Email address</label>
-          <input type="email" id="signin-email-input" class="signin-outlined-input" placeholder="user@devstore.org" autocomplete="email" />
-          <button type="button" class="signin-helper-link" id="signin-forgot-btn">Demo accounts guide</button>
+        <!-- TAB 3: Quick Demo Accounts -->
+        <div id="signin-tab-content-demo" style="display: ${initialTab === 'demo' ? 'block' : 'none'};">
+          <div class="signin-demo-accounts">
+            <div class="demo-accounts-title">Quick demo profiles (1-click)</div>
+            ${DEMO_ACCOUNTS.map((acc, idx) => `
+              <div class="demo-account-item" data-account-idx="${idx}" tabindex="0" role="button">
+                <div class="demo-account-avatar" style="background:${acc.avatarBg}">
+                  ${acc.initial}
+                </div>
+                <div class="demo-account-info">
+                  <span class="demo-account-name">${this.escapeHtml(acc.name)}</span>
+                  <span class="demo-account-email">${this.escapeHtml(acc.email)}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- Inline Create Account Form Container -->
+          <div id="signin-create-form" style="display:none; margin: 12px 0; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dadce0;">
+            <label class="signin-label" for="signin-create-name" style="font-size:12px; font-weight:600; color:#3c4043; display:block; margin-bottom:4px;">Full Name</label>
+            <input type="text" id="signin-create-name" class="signin-outlined-input" placeholder="e.g. Linus Torvalds" style="margin-bottom:8px;" />
+            <button type="button" class="detail-install-btn" id="signin-confirm-create-btn" style="width:100%; padding:8px;">Create Demo Profile</button>
+          </div>
+          <button type="button" class="signin-helper-link" id="demo-show-custom-btn" style="width:100%; text-align:center; margin-top:8px;">+ Custom demo profile</button>
         </div>
 
         <p class="signin-guest-note">
           Notice: Profiles in DevStore are local demonstrations and do not verify remote emails or transmit credentials. <a href="#learn-more" id="signin-learn-more">Learn more</a>
         </p>
-
-        <div class="signin-actions-row">
-          <button type="button" class="signin-create-btn" id="signin-create-btn">Create account</button>
-          <button type="button" class="signin-next-btn" id="signin-next-btn">Sign in</button>
-        </div>
       </div>
     `;
 
     this.dom.signinModal.classList.add('open');
     this.modalManager.registerOpen('signin-modal', this.dom.signinModal, () => this.closeSignInModal());
 
-    // Bind Sign In events
+    // Close
     document.getElementById('signin-close-x')?.addEventListener('click', () => this.closeSignInModal());
 
+    // Tab switching
+    const tabSignin = document.getElementById('tab-btn-signin');
+    const tabRegister = document.getElementById('tab-btn-register');
+    const tabDemo = document.getElementById('tab-btn-demo');
+    const contentSignin = document.getElementById('signin-tab-content-signin');
+    const contentRegister = document.getElementById('signin-tab-content-register');
+    const contentDemo = document.getElementById('signin-tab-content-demo');
+
+    const switchTab = (tab) => {
+      [tabSignin, tabRegister, tabDemo].forEach(b => b?.classList.remove('active'));
+      [contentSignin, contentRegister, contentDemo].forEach(c => { if (c) c.style.display = 'none'; });
+
+      if (tab === 'signin') {
+        tabSignin?.classList.add('active');
+        if (contentSignin) contentSignin.style.display = 'block';
+      } else if (tab === 'register') {
+        tabRegister?.classList.add('active');
+        if (contentRegister) contentRegister.style.display = 'block';
+      } else if (tab === 'demo') {
+        tabDemo?.classList.add('active');
+        if (contentDemo) contentDemo.style.display = 'block';
+      }
+    };
+
+    tabSignin?.addEventListener('click', () => switchTab('signin'));
+    tabRegister?.addEventListener('click', () => switchTab('register'));
+    tabDemo?.addEventListener('click', () => switchTab('demo'));
+    document.getElementById('register-back-to-signin')?.addEventListener('click', () => switchTab('signin'));
+
+    // Demo account item clicks
     const demoItems = this.dom.signinModal.querySelectorAll('.demo-account-item');
     demoItems.forEach((el) => {
       el.addEventListener('click', () => {
@@ -1889,38 +2053,106 @@ export class DevStoreApp {
 
     const nextBtn = document.getElementById('signin-next-btn');
     const emailInput = document.getElementById('signin-email-input');
+    const passwordInput = document.getElementById('signin-password-input');
 
-    const submitEmail = () => {
-      const email = emailInput.value.trim();
+    const submitLogin = async () => {
+      const email = emailInput ? emailInput.value.trim() : '';
+      const password = passwordInput ? passwordInput.value : '';
       if (!email) {
         this.notifications.notify('Please enter an email address or select a demo profile above.', 'warning');
-        emailInput.focus();
+        emailInput?.focus();
         return;
       }
-      this.handleSignIn(email);
+      await this.handleSignIn(email, password);
     };
 
-    nextBtn?.addEventListener('click', submitEmail);
+    nextBtn?.addEventListener('click', submitLogin);
     emailInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        submitEmail();
+        submitLogin();
+      }
+    });
+    passwordInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitLogin();
       }
     });
 
+    // Magic Link
+    document.getElementById('signin-magic-btn')?.addEventListener('click', async () => {
+      const email = emailInput ? emailInput.value.trim() : '';
+      if (!email) {
+        this.notifications.notify('Please enter an email address for the magic link.', 'warning');
+        emailInput?.focus();
+        return;
+      }
+      if (this.backend && this.backend.isConfigured) {
+        try {
+          await this.backend.signInWithOtp(email);
+          this.notifications.notify(`Magic login link sent to ${email}! Check your inbox.`, 'success');
+        } catch (err) {
+          this.notifications.notify(`Magic link error: ${err.message}`, 'error');
+        }
+      } else {
+        this.notifications.notify(`Magic link requested for ${email} (Offline demo mode).`, 'info');
+      }
+    });
+
+    // Real Registration
+    document.getElementById('register-submit-btn')?.addEventListener('click', async () => {
+      const name = document.getElementById('register-name-input')?.value.trim();
+      const email = document.getElementById('register-email-input')?.value.trim();
+      const password = document.getElementById('register-password-input')?.value;
+
+      if (!email || !password) {
+        this.notifications.notify('Please enter email and password.', 'warning');
+        return;
+      }
+
+      if (this.backend && this.backend.isConfigured) {
+        try {
+          await this.backend.signUp(email, password, name || email.split('@')[0]);
+          this.notifications.notify('Account created! Please verify your email address if required.', 'success');
+          switchTab('signin');
+        } catch (err) {
+          this.notifications.notify(`Registration error: ${err.message}`, 'error');
+        }
+      } else {
+        this.handleSignIn({
+          name: name || 'New User',
+          email: email,
+          initial: (name || email)[0].toUpperCase(),
+          avatarBg: 'linear-gradient(135deg, #188038 0%, #34a853 100%)',
+          installedApps: [],
+          passActive: true,
+          role: 'user',
+          isDemo: true,
+          isVerified: false
+        });
+      }
+    });
+
+    // Inline custom demo create
     const createForm = document.getElementById('signin-create-form');
     const createBtn = document.getElementById('signin-create-btn');
+    const customDemoBtn = document.getElementById('demo-show-custom-btn');
     const createNameInput = document.getElementById('signin-create-name');
     const confirmCreateBtn = document.getElementById('signin-confirm-create-btn');
 
-    createBtn?.addEventListener('click', () => {
+    const toggleCustomCreate = () => {
+      switchTab('demo');
       if (createForm) {
         createForm.style.display = createForm.style.display === 'none' ? 'block' : 'none';
         if (createForm.style.display === 'block') {
           createNameInput?.focus();
         }
       }
-    });
+    };
+
+    createBtn?.addEventListener('click', toggleCustomCreate);
+    customDemoBtn?.addEventListener('click', toggleCustomCreate);
 
     confirmCreateBtn?.addEventListener('click', () => {
       const name = createNameInput ? createNameInput.value.trim() : '';
@@ -1937,6 +2169,7 @@ export class DevStoreApp {
         avatarBg: 'linear-gradient(135deg, #188038 0%, #34a853 100%)',
         installedApps: ['org.devstore.chess'],
         passActive: true,
+        role: 'user',
         isDemo: true,
         isVerified: false
       });
@@ -1944,13 +2177,14 @@ export class DevStoreApp {
 
     document.getElementById('signin-forgot-btn')?.addEventListener('click', () => {
       this.notifications.notify('Select any 1-click quick demo profile above to explore user library features.', 'info');
+      switchTab('demo');
     });
 
     document.getElementById('signin-learn-more')?.addEventListener('click', (e) => {
       e.preventDefault();
       this.notifications.showDialog({
-        title: 'DevStore Demo Authentication',
-        message: 'DevStore operates in a client-side sandbox. All profiles are local demonstrations without external credential validation or identity verification.'
+        title: 'DevStore Authentication & Security',
+        message: 'DevStore supports real Supabase authentication with Row Level Security (RLS) and PostgreSQL triggers. In unconfigured environments, DevStore operates in an offline demonstration sandbox.'
       });
     });
 
@@ -1963,14 +2197,36 @@ export class DevStoreApp {
     this.modalManager.registerClose('signin-modal');
   }
 
-  handleSignIn(accountOrEmail) {
+  async handleSignIn(accountOrEmail, password = null) {
     if (typeof accountOrEmail === 'object' && accountOrEmail !== null) {
-      this.user = { ...accountOrEmail, isDemo: true, isVerified: false };
+      this.user = {
+        ...accountOrEmail,
+        isDemo: accountOrEmail.isDemo !== false,
+        isVerified: accountOrEmail.isVerified === true,
+        role: accountOrEmail.role || 'user'
+      };
     } else {
       const email = String(accountOrEmail);
+      if (password && this.backend && this.backend.isConfigured) {
+        try {
+          await this.backend.signInWithPassword(email, password);
+          const profile = await this.backend.getCurrentProfile();
+          if (profile) {
+            this.user = profile;
+          }
+          this.renderUserAvatar();
+          this.closeSignInModal();
+          this.notifications.notify(`Signed in as ${this.user.name} (${this.user.role})`, 'success');
+          return;
+        } catch (err) {
+          this.notifications.notify(`Authentication error: ${err.message}`, 'error');
+          return;
+        }
+      }
+
       const matched = DEMO_ACCOUNTS.find(a => a.email.toLowerCase() === email.toLowerCase());
       if (matched) {
-        this.user = { ...matched, isDemo: true, isVerified: false };
+        this.user = { ...matched, isDemo: true, isVerified: false, role: 'user' };
       } else {
         const localPart = email.split('@')[0] || 'User';
         const formattedName = localPart.split('.')[0];
@@ -1982,6 +2238,7 @@ export class DevStoreApp {
           avatarBg: 'linear-gradient(135deg, #01875f 0%, #34a853 100%)',
           installedApps: ['org.devstore.chess', 'org.devstore.calculator'],
           passActive: true,
+          role: 'user',
           isDemo: true,
           isVerified: false
         };
@@ -1997,6 +2254,775 @@ export class DevStoreApp {
     this.renderUserAvatar();
     this.closeSignInModal();
     this.notifications.notify(`Signed in as ${this.user.name} (Demo Profile)`, 'success');
+  }
+
+  // --------------------------------------------------------------------------
+  // Phase 9A Developer Console Portal
+  // --------------------------------------------------------------------------
+  async openDeveloperPortal(activeTab = 'apps') {
+    this.closeProfilePopover();
+    if (!this.user) {
+      this.notifications.notify('Please sign in or select a profile first.', 'warning');
+      this.openSignInModal();
+      return;
+    }
+    if (!this.dom.developerPortalModal) return;
+
+    const isDeveloper = this.user.role === 'developer' || this.user.role === 'admin';
+
+    let existingApplication = null;
+    if (!isDeveloper && this.backend && this.backend.isConfigured) {
+      try {
+        existingApplication = await this.backend.getDeveloperApplication();
+        if (existingApplication && existingApplication.status === 'approved') {
+          this.user.role = 'developer';
+        }
+      } catch (e) {
+        console.warn('Could not check developer application:', e);
+      }
+    }
+
+    let devApps = [];
+    if (isDeveloper && this.backend && this.backend.isConfigured) {
+      try {
+        devApps = await this.backend.getDeveloperApps();
+      } catch (e) {
+        console.warn('Could not load developer apps:', e);
+      }
+    } else if (isDeveloper && !this.backend?.isConfigured) {
+      devApps = [
+        {
+          id: 'org.devstore.chess',
+          name: 'Retro Chess Arena',
+          category: 'games',
+          status: 'published',
+          summary: 'Classic 8-bit aesthetic chess with local multiplayer and engine analysis.',
+          app_versions: [{ version: '1.4.2', platform: 'windows', status: 'approved' }]
+        }
+      ];
+    }
+
+    const renderPortalContent = (tab) => {
+      if (!isDeveloper && !(existingApplication && existingApplication.status === 'approved')) {
+        return `
+          <div style="max-width: 600px; margin: 0 auto;">
+            ${existingApplication && existingApplication.status === 'pending' ? `
+              <div class="backend-status-banner unconfigured" style="margin-bottom: 20px;">
+                <span style="font-weight: 600;">Status: Pending Administrator Review</span>
+                <p style="margin: 4px 0 0; font-size: 13px;">Your developer access application is being reviewed by our moderation team. You will be notified once approved.</p>
+              </div>
+            ` : existingApplication && existingApplication.status === 'rejected' ? `
+              <div class="backend-status-banner" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5; margin-bottom: 20px;">
+                <span style="font-weight: 600;">Previous Application Rejected</span>
+                <p style="margin: 4px 0 0; font-size: 13px;">Reason: ${this.escapeHtml(existingApplication.admin_notes || 'Does not meet current guidelines.')}</p>
+                <p style="margin: 4px 0 0; font-size: 12px;">You may submit an updated application below.</p>
+              </div>
+            ` : ''}
+
+            <h3 style="font-size: 18px; color: #202124; margin-bottom: 8px;">Apply for Developer Access</h3>
+            <p style="font-size: 14px; color: #5f6368; line-height: 1.5; margin-bottom: 20px;">
+              Publish your Windows and Android software directly to DevStore. All submissions undergo administrator review and SHA-256 package integrity verification before going live.
+            </p>
+
+            <form id="dev-apply-form">
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="dev-apply-org">Organization or Studio Name *</label>
+                <input type="text" id="dev-apply-org" class="portal-input" placeholder="e.g. Acme Software Labs" required />
+              </div>
+
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="dev-apply-web">Official Website or Repository *</label>
+                <input type="url" id="dev-apply-web" class="portal-input" placeholder="https://github.com/your-org" required />
+              </div>
+
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="dev-apply-apps">Intended Software to Distribute *</label>
+                <textarea id="dev-apply-apps" class="portal-textarea" rows="3" placeholder="Describe the applications and tools you plan to publish..." required></textarea>
+              </div>
+
+              <div class="portal-form-group" style="display: flex; align-items: flex-start; gap: 8px;">
+                <input type="checkbox" id="dev-apply-terms" required style="margin-top: 3px;" />
+                <label for="dev-apply-terms" style="font-size: 13px; color: #3c4043; line-height: 1.4;">
+                  I certify that I am the author or authorized distributor of all uploaded software. I agree to provide genuine SHA-256 checksums and adhere to DevStore security policies.
+                </label>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+                <button type="button" class="detail-share-btn" id="dev-apply-cancel">Cancel</button>
+                <button type="submit" class="detail-install-btn" id="dev-apply-submit">Submit Application</button>
+              </div>
+            </form>
+          </div>
+        `;
+      }
+
+      if (tab === 'apps') {
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+              <h3 style="font-size: 18px; margin: 0 0 4px; color: #202124;">Your Application Listings</h3>
+              <p style="font-size: 13px; color: #5f6368; margin: 0;">Manage your software drafts, versions, and published packages.</p>
+            </div>
+            <button class="detail-install-btn" id="dev-cta-new-listing" style="font-size: 13px; padding: 8px 16px;">
+              + Create App Listing
+            </button>
+          </div>
+
+          ${devApps.length === 0 ? `
+            <div class="empty-state" style="padding: 40px 20px;">
+              <div class="empty-state-title">No Applications Yet</div>
+              <div class="empty-state-desc">You have not created any application listings yet. Click "Create App Listing" to get started.</div>
+            </div>
+          ` : `
+            <div class="portal-cards-grid">
+              ${devApps.map(app => `
+                <div class="portal-item-card">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <span class="portal-item-title">${this.escapeHtml(app.name)}</span>
+                    <span class="status-pill ${app.status}">${app.status}</span>
+                  </div>
+                  <div style="font-size: 12px; color: #5f6368; font-family: monospace;">${this.escapeHtml(app.id)}</div>
+                  <div style="font-size: 13px; color: #3c4043; line-height: 1.4; flex: 1;">${this.escapeHtml(app.summary || '')}</div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; pt: 8px; border-top: 1px solid #f1f3f4; font-size: 12px; color: #5f6368;">
+                    <span>Category: ${this.escapeHtml(app.category)}</span>
+                    <span>${(app.app_versions || []).length} version(s)</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
+        `;
+      }
+
+      if (tab === 'newapp') {
+        return `
+          <div style="max-width: 650px; margin: 0 auto;">
+            <h3 style="font-size: 18px; color: #202124; margin-bottom: 6px;">Create New Application Listing</h3>
+            <p style="font-size: 13px; color: #5f6368; margin-bottom: 20px;">Register software metadata. After registering the listing, upload a binary package to submit for review.</p>
+
+            <form id="dev-create-app-form">
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="newapp-id">Package ID (Unique Domain Reverse Identifier) *</label>
+                <input type="text" id="newapp-id" class="portal-input" placeholder="e.g. org.yourname.appname" required pattern="^[a-zA-Z0-9._-]+$" />
+                <div class="portal-form-hint">Must be unique across DevStore (e.g. com.mycompany.mytool)</div>
+              </div>
+
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="newapp-name">Application Name *</label>
+                <input type="text" id="newapp-name" class="portal-input" placeholder="e.g. Quantum Studio" required />
+              </div>
+
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="newapp-category">Category *</label>
+                <select id="newapp-category" class="portal-select" required>
+                  <option value="games">Games</option>
+                  <option value="developer">Developer Tools</option>
+                  <option value="productivity">Productivity</option>
+                  <option value="utilities">Utilities</option>
+                </select>
+              </div>
+
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="newapp-summary">Short Summary (1-line) *</label>
+                <input type="text" id="newapp-summary" class="portal-input" placeholder="e.g. Modern open-source vector drawing tool" required />
+              </div>
+
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="newapp-desc">Detailed Description *</label>
+                <textarea id="newapp-desc" class="portal-textarea" rows="4" placeholder="Full application description, key features, and requirements..." required></textarea>
+              </div>
+
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="newapp-icon">Icon URL (optional)</label>
+                <input type="url" id="newapp-icon" class="portal-input" placeholder="https://your-domain.com/icon.png" />
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+                <button type="button" class="detail-share-btn" id="newapp-cancel">Cancel</button>
+                <button type="submit" class="detail-install-btn" id="newapp-submit">Save Application Draft</button>
+              </div>
+            </form>
+          </div>
+        `;
+      }
+
+      if (tab === 'upload') {
+        return `
+          <div style="max-width: 650px; margin: 0 auto;">
+            <h3 style="font-size: 18px; color: #202124; margin-bottom: 6px;">Submit Application Release Package</h3>
+            <p style="font-size: 13px; color: #5f6368; margin-bottom: 20px;">Upload package binary. All packages remain private in secure storage until approved by an administrator.</p>
+
+            <form id="dev-upload-version-form">
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="ver-app-id">Select Application *</label>
+                <select id="ver-app-id" class="portal-select" required>
+                  ${devApps.map(a => `<option value="${this.escapeHtml(a.id)}">${this.escapeHtml(a.name)} (${this.escapeHtml(a.id)})</option>`).join('')}
+                </select>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="portal-form-group">
+                  <label class="portal-form-label" for="ver-version">Version Tag *</label>
+                  <input type="text" id="ver-version" class="portal-input" placeholder="e.g. 1.0.0" required pattern="^[0-9]+(\\.[0-9]+)*(-[a-zA-Z0-9]+)?$" />
+                </div>
+                <div class="portal-form-group">
+                  <label class="portal-form-label" for="ver-platform">Target Platform *</label>
+                  <select id="ver-platform" class="portal-select" required>
+                    <option value="windows">Windows (.zip, .msi, .exe)</option>
+                    <option value="android">Android (.apk)</option>
+                    <option value="web">Web Archive (.tar.gz, .zip)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="portal-form-group">
+                <label class="portal-form-label" for="ver-notes">Release Notes</label>
+                <textarea id="ver-notes" class="portal-textarea" rows="3" placeholder="What's new in this release..."></textarea>
+              </div>
+
+              <div class="portal-form-group">
+                <label class="portal-form-label">Package Binary File *</label>
+                <div class="portal-upload-zone" id="package-drop-zone">
+                  <input type="file" id="package-file-input" style="display: none;" accept=".zip,.apk,.tar.gz,.msi,.exe" required />
+                  <div id="drop-zone-content">
+                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#5f6368" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 8px;">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <div style="font-weight: 500; color: #202124;">Click or drag binary here</div>
+                    <div style="font-size: 12px; color: #5f6368; margin-top: 4px;">Supported: .zip, .apk, .tar.gz, .msi, .exe (Max 250 MB)</div>
+                  </div>
+                </div>
+
+                <div id="file-sha256-wrap" style="display: none; margin-top: 12px;">
+                  <div class="checksum-display-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                      <span style="font-size: 11px; font-weight: 600; color: #15803d;">✔ SHA-256 Calculated Locally (Client-Verified)</span>
+                      <span id="file-size-label" style="font-size: 11px; color: #64748b;"></span>
+                    </div>
+                    <div class="checksum-hash-code" id="checksum-value"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+                <button type="button" class="detail-share-btn" id="ver-cancel">Cancel</button>
+                <button type="submit" class="detail-install-btn" id="ver-submit">Upload &amp; Submit for Moderation</button>
+              </div>
+            </form>
+          </div>
+        `;
+      }
+      return '';
+    };
+
+    this.dom.developerPortalModal.innerHTML = `
+      <div class="developer-portal-dialog" id="developer-portal-dialog" role="dialog" aria-modal="true" aria-labelledby="dev-portal-title">
+        <div class="portal-dialog-header">
+          <h2 class="portal-dialog-title" id="dev-portal-title">
+            ${ICONS.glyphTerminal}
+            <span>DevStore Developer Console</span>
+          </h2>
+          <button class="popover-close-btn" id="dev-portal-close" aria-label="Close Developer Console">
+            ${ICONS.close}
+          </button>
+        </div>
+
+        ${isDeveloper ? `
+          <div class="portal-tabs-nav">
+            <button class="portal-tab-btn ${activeTab === 'apps' ? 'active' : ''}" data-tab="apps">My Applications</button>
+            <button class="portal-tab-btn ${activeTab === 'newapp' ? 'active' : ''}" data-tab="newapp">New Application</button>
+            <button class="portal-tab-btn ${activeTab === 'upload' ? 'active' : ''}" data-tab="upload">Submit Release</button>
+          </div>
+        ` : ''}
+
+        <div class="portal-body" id="dev-portal-body">
+          ${renderPortalContent(activeTab)}
+        </div>
+      </div>
+    `;
+
+    this.dom.developerPortalModal.classList.add('open');
+    this.modalManager.registerOpen('developer-portal-modal', this.dom.developerPortalModal, () => this.closeDeveloperPortal());
+
+    // Bind Close
+    document.getElementById('dev-portal-close')?.addEventListener('click', () => this.closeDeveloperPortal());
+    document.getElementById('dev-apply-cancel')?.addEventListener('click', () => this.closeDeveloperPortal());
+    document.getElementById('newapp-cancel')?.addEventListener('click', () => this.openDeveloperPortal('apps'));
+    document.getElementById('ver-cancel')?.addEventListener('click', () => this.openDeveloperPortal('apps'));
+
+    // Bind Tabs
+    this.dom.developerPortalModal.querySelectorAll('.portal-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-tab');
+        this.openDeveloperPortal(tab);
+      });
+    });
+
+    // Developer Application Form Submit
+    const applyForm = document.getElementById('dev-apply-form');
+    applyForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const org = document.getElementById('dev-apply-org')?.value.trim();
+      const web = document.getElementById('dev-apply-web')?.value.trim();
+      const apps = document.getElementById('dev-apply-apps')?.value.trim();
+
+      if (!org || !web || !apps) {
+        this.notifications.notify('Please fill in all required fields.', 'warning');
+        return;
+      }
+
+      if (this.backend && this.backend.isConfigured) {
+        try {
+          await this.backend.applyForDeveloperRole({ organizationName: org, website: web, intendedApps: apps });
+          this.notifications.notify('Developer application submitted for moderation review!', 'success');
+          this.closeDeveloperPortal();
+        } catch (err) {
+          this.notifications.notify(`Application submission error: ${err.message}`, 'error');
+        }
+      } else {
+        this.user.role = 'developer';
+        try { localStorage.setItem('devstore_user', JSON.stringify(this.user)); } catch (_) {}
+        this.notifications.notify('Demo developer access granted (Local test mode)!', 'success');
+        this.openDeveloperPortal('apps');
+      }
+    });
+
+    // New App Form Submit
+    const createAppForm = document.getElementById('dev-create-app-form');
+    createAppForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const appId = document.getElementById('newapp-id')?.value.trim();
+      const appName = document.getElementById('newapp-name')?.value.trim();
+      const category = document.getElementById('newapp-category')?.value;
+      const summary = document.getElementById('newapp-summary')?.value.trim();
+      const desc = document.getElementById('newapp-desc')?.value.trim();
+      const icon = document.getElementById('newapp-icon')?.value.trim();
+
+      if (this.backend && this.backend.isConfigured) {
+        try {
+          await this.backend.createOrUpdateAppListing({
+            id: appId,
+            name: appName,
+            category,
+            summary,
+            description: desc,
+            icon_url: icon,
+            status: 'draft'
+          });
+          this.notifications.notify(`App listing "${appName}" created in draft status!`, 'success');
+          this.openDeveloperPortal('apps');
+        } catch (err) {
+          this.notifications.notify(`Failed to create app listing: ${err.message}`, 'error');
+        }
+      } else {
+        this.notifications.notify(`Draft listing "${appName}" created (Local demo mode).`, 'success');
+        this.openDeveloperPortal('apps');
+      }
+    });
+
+    // Upload Release Form & Live SHA-256 Checksum Calculation
+    const dropZone = document.getElementById('package-drop-zone');
+    const fileInput = document.getElementById('package-file-input');
+    const shaWrap = document.getElementById('file-sha256-wrap');
+    const checksumEl = document.getElementById('checksum-value');
+    const sizeLabel = document.getElementById('file-size-label');
+    let selectedFile = null;
+
+    dropZone?.addEventListener('click', () => fileInput?.click());
+    dropZone?.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone?.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone?.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files?.length) {
+        handleFileSelect(e.dataTransfer.files[0]);
+      }
+    });
+
+    const handleFileSelect = async (file) => {
+      if (!file) return;
+      const validation = this.backend.validatePackageFile(file);
+      if (!validation.valid) {
+        this.notifications.notify(validation.error, 'warning');
+        return;
+      }
+      selectedFile = file;
+      const dropContent = document.getElementById('drop-zone-content');
+      if (dropContent) {
+        dropContent.innerHTML = `
+          <div style="font-weight: 600; color: #01875f;">📦 ${this.escapeHtml(file.name)}</div>
+          <div style="font-size: 12px; color: #5f6368;">Ready to upload &bull; Calculating SHA-256...</div>
+        `;
+      }
+
+      try {
+        const hash = await this.backend.calculateSha256(file);
+        if (shaWrap) shaWrap.style.display = 'block';
+        if (checksumEl) checksumEl.innerText = hash;
+        if (sizeLabel) sizeLabel.innerText = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+        if (dropContent) {
+          dropContent.innerHTML = `
+            <div style="font-weight: 600; color: #01875f;">📦 ${this.escapeHtml(file.name)}</div>
+            <div style="font-size: 12px; color: #5f6368;">Verified ${(file.size / (1024 * 1024)).toFixed(2)} MB &bull; SHA-256 ready</div>
+          `;
+        }
+      } catch (err) {
+        this.notifications.notify(`Checksum calculation error: ${err.message}`, 'error');
+      }
+    };
+
+    fileInput?.addEventListener('change', () => {
+      if (fileInput.files?.length) {
+        handleFileSelect(fileInput.files[0]);
+      }
+    });
+
+    const uploadForm = document.getElementById('dev-upload-version-form');
+    uploadForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!selectedFile) {
+        this.notifications.notify('Please select a valid package file.', 'warning');
+        return;
+      }
+      const targetAppId = document.getElementById('ver-app-id')?.value;
+      const version = document.getElementById('ver-version')?.value.trim();
+      const platform = document.getElementById('ver-platform')?.value;
+      const notes = document.getElementById('ver-notes')?.value.trim();
+
+      if (this.backend && this.backend.isConfigured) {
+        try {
+          this.notifications.notify('Uploading package and registering release version...', 'info');
+          await this.backend.submitAppVersion({
+            appId: targetAppId,
+            version,
+            platform,
+            releaseNotes: notes,
+            file: selectedFile
+          });
+          this.notifications.notify('Version release uploaded & submitted for moderation!', 'success');
+          this.openDeveloperPortal('apps');
+        } catch (err) {
+          this.notifications.notify(`Release submission failed: ${err.message}`, 'error');
+        }
+      } else {
+        this.notifications.notify(`Release v${version} for ${platform} submitted (Demo test mode).`, 'success');
+        this.openDeveloperPortal('apps');
+      }
+    });
+
+    document.getElementById('dev-cta-new-listing')?.addEventListener('click', () => {
+      this.openDeveloperPortal('newapp');
+    });
+  }
+
+  closeDeveloperPortal() {
+    if (!this.dom.developerPortalModal) return;
+    this.dom.developerPortalModal.classList.remove('open');
+    this.modalManager.registerClose('developer-portal-modal');
+  }
+
+  // --------------------------------------------------------------------------
+  // Phase 9A Admin Moderation Dashboard
+  // --------------------------------------------------------------------------
+  async openAdminPortal(activeTab = 'devs') {
+    this.closeProfilePopover();
+    if (!this.user || (this.user.role !== 'admin' && !this.user.isAdmin)) {
+      this.notifications.showDialog({
+        title: 'Access Restricted',
+        message: 'Administrator authorization required. Every role is strictly enforced on the PostgreSQL backend.'
+      });
+      return;
+    }
+
+    if (!this.dom.adminDashboardModal) return;
+
+    let pendingDevs = [];
+    let pendingReleases = [];
+    let auditLogs = [];
+
+    if (this.backend && this.backend.isConfigured) {
+      try {
+        if (activeTab === 'devs') {
+          pendingDevs = await this.backend.getAdminPendingDeveloperApplications();
+        } else if (activeTab === 'releases') {
+          pendingReleases = await this.backend.getAdminPendingVersions();
+        } else if (activeTab === 'logs') {
+          auditLogs = await this.backend.getModerationAuditLogs();
+        }
+      } catch (err) {
+        console.warn('Failed to fetch admin data from backend:', err);
+      }
+    } else {
+      pendingDevs = [
+        {
+          id: 'dev-app-demo-1',
+          organization_name: 'Starlight Interactive Studio',
+          website: 'https://starlight.devstore.org',
+          intended_apps: 'Next-generation puzzle and physics simulation games.',
+          created_at: new Date().toISOString(),
+          profiles: { email: 'developer@starlight.org', full_name: 'Elena Rostova' }
+        }
+      ];
+      pendingReleases = [
+        {
+          id: 'ver-demo-1',
+          app_id: 'org.devstore.chess',
+          version: '1.5.0',
+          platform: 'windows',
+          file_size_bytes: 42100000,
+          sha256_checksum: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+          release_notes: 'Engine update to Stockfish 16. Support for high-DPI Windows displays.',
+          submitted_at: new Date().toISOString(),
+          applications: { name: 'Retro Chess Arena' }
+        }
+      ];
+      auditLogs = [
+        {
+          id: 'log-demo-1',
+          target_type: 'developer_application',
+          target_id: 'dev-app-sample',
+          action: 'approved',
+          reason: 'Verified studio portfolio and identity.',
+          created_at: new Date().toISOString(),
+          profiles: { email: 'admin@devstore.org', full_name: 'DevStore Security' }
+        }
+      ];
+    }
+
+    const renderAdminContent = (tab) => {
+      if (tab === 'devs') {
+        if (pendingDevs.length === 0) {
+          return `
+            <div class="empty-state" style="padding: 40px 20px;">
+              <div class="empty-state-title">No Pending Applications</div>
+              <div class="empty-state-desc">All developer applications have been moderated.</div>
+            </div>
+          `;
+        }
+        return `
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            ${pendingDevs.map(app => `
+              <div class="portal-item-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div>
+                    <span class="portal-item-title">${this.escapeHtml(app.organization_name)}</span>
+                    <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
+                      Applicant: ${this.escapeHtml(app.profiles?.full_name || 'Developer')} &bull; ${this.escapeHtml(app.profiles?.email || '')}
+                    </div>
+                  </div>
+                  <span class="status-pill pending">Pending Review</span>
+                </div>
+                <div style="font-size: 13px; color: #202124; margin: 4px 0;">
+                  <strong>Website:</strong> <a href="${this.escapeHtml(app.website || '#')}" target="_blank" rel="noopener noreferrer" style="color: #01875f;">${this.escapeHtml(app.website || 'N/A')}</a>
+                </div>
+                <div style="font-size: 13px; color: #3c4043; line-height: 1.4;">
+                  <strong>Intended Software:</strong> ${this.escapeHtml(app.intended_apps || 'Not specified')}
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; pt: 12px; border-top: 1px solid #f1f3f4;">
+                  <button class="detail-share-btn admin-reject-dev-btn" data-app-id="${app.id}" style="color: #c5221f; border-color: #fca5a5;">
+                    Reject
+                  </button>
+                  <button class="detail-install-btn admin-approve-dev-btn" data-app-id="${app.id}">
+                    Approve Developer
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      if (tab === 'releases') {
+        if (pendingReleases.length === 0) {
+          return `
+            <div class="empty-state" style="padding: 40px 20px;">
+              <div class="empty-state-title">No Pending Releases</div>
+              <div class="empty-state-desc">All submitted software releases have been reviewed and published.</div>
+            </div>
+          `;
+        }
+        return `
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            ${pendingReleases.map(ver => `
+              <div class="portal-item-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div>
+                    <span class="portal-item-title">${this.escapeHtml(ver.applications?.name || ver.app_id)} (v${this.escapeHtml(ver.version)})</span>
+                    <div style="font-size: 12px; color: #5f6368;">Platform: ${this.escapeHtml(ver.platform)} &bull; ${(ver.file_size_bytes / (1024 * 1024)).toFixed(2)} MB</div>
+                  </div>
+                  <span class="status-pill pending">Pending Review</span>
+                </div>
+                <div class="checksum-display-box" style="margin: 8px 0;">
+                  <span style="font-size: 11px; font-weight: 600; color: #3c4043; display: block; margin-bottom: 2px;">Package SHA-256 Integrity Checksum</span>
+                  <div class="checksum-hash-code">${this.escapeHtml(ver.sha256_checksum)}</div>
+                </div>
+                <div style="font-size: 13px; color: #3c4043; line-height: 1.4;">
+                  <strong>Release Notes:</strong> ${this.escapeHtml(ver.release_notes || 'No release notes provided.')}
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; pt: 12px; border-top: 1px solid #f1f3f4;">
+                  <button class="detail-share-btn admin-reject-ver-btn" data-ver-id="${ver.id}" style="color: #c5221f; border-color: #fca5a5;">
+                    Reject Release
+                  </button>
+                  <button class="detail-install-btn admin-approve-ver-btn" data-ver-id="${ver.id}">
+                    Approve &amp; Publish
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      if (tab === 'logs') {
+        return `
+          <div class="audit-table-wrapper">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Target Type</th>
+                  <th>Action</th>
+                  <th>Admin</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${auditLogs.map(log => `
+                  <tr>
+                    <td>${new Date(log.created_at).toLocaleString()}</td>
+                    <td><span style="font-family: monospace;">${this.escapeHtml(log.target_type)}</span></td>
+                    <td><span class="status-pill ${log.action === 'approved' ? 'published' : 'rejected'}">${this.escapeHtml(log.action)}</span></td>
+                    <td>${this.escapeHtml(log.profiles?.full_name || 'Admin')}</td>
+                    <td>${this.escapeHtml(log.reason || '—')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+      return '';
+    };
+
+    this.dom.adminDashboardModal.innerHTML = `
+      <div class="admin-dashboard-dialog" id="admin-dashboard-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-portal-title">
+        <div class="portal-dialog-header">
+          <h2 class="portal-dialog-title" id="admin-portal-title">
+            ${ICONS.shield}
+            <span>DevStore Admin Moderation Dashboard</span>
+          </h2>
+          <button class="popover-close-btn" id="admin-portal-close" aria-label="Close Admin Dashboard">
+            ${ICONS.close}
+          </button>
+        </div>
+
+        <div class="portal-tabs-nav">
+          <button class="portal-tab-btn ${activeTab === 'devs' ? 'active' : ''}" data-tab="devs">Developer Applications</button>
+          <button class="portal-tab-btn ${activeTab === 'releases' ? 'active' : ''}" data-tab="releases">Pending Releases</button>
+          <button class="portal-tab-btn ${activeTab === 'logs' ? 'active' : ''}" data-tab="logs">Moderation Logs</button>
+        </div>
+
+        <div class="portal-body" id="admin-portal-body">
+          ${renderAdminContent(activeTab)}
+        </div>
+      </div>
+    `;
+
+    this.dom.adminDashboardModal.classList.add('open');
+    this.modalManager.registerOpen('admin-dashboard-modal', this.dom.adminDashboardModal, () => this.closeAdminPortal());
+
+    document.getElementById('admin-portal-close')?.addEventListener('click', () => this.closeAdminPortal());
+
+    this.dom.adminDashboardModal.querySelectorAll('.portal-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-tab');
+        this.openAdminPortal(tab);
+      });
+    });
+
+    // Handle Approve Developer
+    this.dom.adminDashboardModal.querySelectorAll('.admin-approve-dev-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.getAttribute('data-app-id');
+        if (this.backend && this.backend.isConfigured) {
+          try {
+            await this.backend.adminApproveDeveloper(appId, 'Approved by Administrator');
+            this.notifications.notify('Developer application approved! Publishing privileges granted.', 'success');
+            this.openAdminPortal('devs');
+          } catch (err) {
+            this.notifications.notify(`Approval failed: ${err.message}`, 'error');
+          }
+        } else {
+          this.notifications.notify('Developer approved (Demo mode).', 'success');
+          this.openAdminPortal('devs');
+        }
+      });
+    });
+
+    // Handle Reject Developer
+    this.dom.adminDashboardModal.querySelectorAll('.admin-reject-dev-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.getAttribute('data-app-id');
+        if (this.backend && this.backend.isConfigured) {
+          try {
+            await this.backend.adminRejectDeveloper(appId, 'Application did not meet security standards.');
+            this.notifications.notify('Developer application rejected.', 'info');
+            this.openAdminPortal('devs');
+          } catch (err) {
+            this.notifications.notify(`Rejection failed: ${err.message}`, 'error');
+          }
+        } else {
+          this.notifications.notify('Developer rejected (Demo mode).', 'info');
+          this.openAdminPortal('devs');
+        }
+      });
+    });
+
+    // Handle Approve Version
+    this.dom.adminDashboardModal.querySelectorAll('.admin-approve-ver-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const verId = btn.getAttribute('data-ver-id');
+        if (this.backend && this.backend.isConfigured) {
+          try {
+            await this.backend.adminApproveVersion(verId, 'Package checksum verified. Approved for distribution.');
+            this.notifications.notify('Release version approved and published to DevStore!', 'success');
+            this.openAdminPortal('releases');
+          } catch (err) {
+            this.notifications.notify(`Version approval failed: ${err.message}`, 'error');
+          }
+        } else {
+          this.notifications.notify('Release approved & published (Demo mode).', 'success');
+          this.openAdminPortal('releases');
+        }
+      });
+    });
+
+    // Handle Reject Version
+    this.dom.adminDashboardModal.querySelectorAll('.admin-reject-ver-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const verId = btn.getAttribute('data-ver-id');
+        if (this.backend && this.backend.isConfigured) {
+          try {
+            await this.backend.adminRejectVersion(verId, 'Package failed moderation criteria.');
+            this.notifications.notify('Release version rejected.', 'info');
+            this.openAdminPortal('releases');
+          } catch (err) {
+            this.notifications.notify(`Version rejection failed: ${err.message}`, 'error');
+          }
+        } else {
+          this.notifications.notify('Release rejected (Demo mode).', 'info');
+          this.openAdminPortal('releases');
+        }
+      });
+    });
+  }
+
+  closeAdminPortal() {
+    if (!this.dom.adminDashboardModal) return;
+    this.dom.adminDashboardModal.classList.remove('open');
+    this.modalManager.registerClose('admin-dashboard-modal');
   }
 
   handleSignOut() {

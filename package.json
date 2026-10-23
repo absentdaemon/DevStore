@@ -7,6 +7,7 @@
     "start": "node server.cjs",
     "test": "node tests/run-all-tests.mjs",
     "test:security": "node tests/test-server-security.mjs",
+    "test:backend": "node tests/test-backend-roles.mjs",
     "test:browser": "node tests/test-browser-integration.mjs",
     "test:audit": "node tests/validate-downloads.mjs"
   },
@@ -18,5 +19,8 @@
     "open-source"
   ],
   "author": "DevStore Project",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0"
+  }
 }
