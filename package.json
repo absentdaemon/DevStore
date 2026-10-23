@@ -1,0 +1,22 @@
+{
+  "name": "devstore",
+  "version": "1.0.0",
+  "description": "DevStore — Open Source Application Catalog & Storefront",
+  "main": "server.cjs",
+  "scripts": {
+    "start": "node server.cjs",
+    "test": "node tests/run-all-tests.mjs",
+    "test:security": "node tests/test-server-security.mjs",
+    "test:browser": "node tests/test-browser-integration.mjs",
+    "test:audit": "node tests/validate-downloads.mjs"
+  },
+  "keywords": [
+    "devstore",
+    "catalog",
+    "storefront",
+    "security",
+    "open-source"
+  ],
+  "author": "DevStore Project",
+  "license": "MIT"
+}

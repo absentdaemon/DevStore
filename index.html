@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="DevStore — Open application marketplace for Windows and Android. Discover curated games, tools, and productivity applications.">
   <title>DevStore — Curated App Marketplace</title>
@@ -105,7 +105,7 @@
         </button>
 
         <!-- Help Icon Button -->
-        <button class="header-icon-btn" id="help-btn" aria-label="Help & support" onclick="alert('DevStore is an independent application marketplace inspired by Google Play Store. Free and ethical software downloads.')">
+        <button class="header-icon-btn" id="help-btn" aria-label="Help & support" onclick="devstore.showHelpInfo()">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
@@ -222,27 +222,33 @@
   <div class="modal-backdrop" id="manage-apps-modal" role="dialog" aria-modal="true" aria-label="Manage apps and device"></div>
 
 
+  <!-- DevStore Notifications Mount Point -->
+  <div class="store-notifications-container" id="store-notifications" role="region" aria-label="DevStore Notifications" aria-live="polite"></div>
+
+  <!-- General Info Modal Dialog -->
+  <div class="modal-backdrop" id="info-modal" role="dialog" aria-modal="true" aria-label="Information"></div>
+
   <!-- Google Play Style Footer -->
   <footer class="store-footer" role="contentinfo">
     <div class="container footer-content">
       <div class="footer-links-row">
         <div class="footer-col">
           <span class="footer-col-title">DevStore</span>
-          <a href="#about" onclick="alert('DevStore is an independent open-source marketplace project. All applications are verified.')">About DevStore</a>
-          <a href="#play-pass" onclick="alert('DevStore Pass: All developer tools and games are 100% free.')">DevStore Pass</a>
-          <a href="#devices" onclick="alert('Available for Windows PC, Android, and Web.')">Supported Devices</a>
+          <a href="#about" onclick="devstore.showFooterInfo('about')">About DevStore</a>
+          <a href="#play-pass" onclick="devstore.showFooterInfo('play-pass')">DevStore Pass</a>
+          <a href="#devices" onclick="devstore.showFooterInfo('devices')">Supported Devices</a>
         </div>
         <div class="footer-col">
           <span class="footer-col-title">Developers</span>
-          <a href="#developer-console" onclick="alert('DevStore Console: Submit applications via manifest.')">DevStore Console</a>
-          <a href="#documentation" onclick="alert('Developer Documentation available in SPEC.md.')">Developer Documentation</a>
-          <a href="#package-policy" onclick="alert('Zero telemetry, transparent licensing.')">Package Standards</a>
+          <a href="#developer-console" onclick="devstore.showFooterInfo('developer-console')">DevStore Console</a>
+          <a href="#documentation" onclick="devstore.showFooterInfo('documentation')">Developer Documentation</a>
+          <a href="#package-policy" onclick="devstore.showFooterInfo('package-policy')">Package Standards</a>
         </div>
         <div class="footer-col">
           <span class="footer-col-title">Help & Legal</span>
-          <a href="#support" onclick="alert('Customer support and documentation.')">Help Center</a>
-          <a href="#privacy" onclick="alert('Privacy Guarantee: No cookies, no trackers.')">Privacy Policy</a>
-          <a href="#terms" onclick="alert('Distributed under original package licenses.')">Terms of Service</a>
+          <a href="#support" onclick="devstore.showFooterInfo('support')">Help Center</a>
+          <a href="#privacy" onclick="devstore.showFooterInfo('privacy')">Privacy Policy</a>
+          <a href="#terms" onclick="devstore.showFooterInfo('terms')">Terms of Service</a>
         </div>
       </div>
       <div class="footer-bottom-bar">

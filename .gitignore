@@ -4,3 +4,4 @@ node_err.txt
 node_out.txt
 .DS_Store
 Thumbs.db
+.test_chrome_profile/

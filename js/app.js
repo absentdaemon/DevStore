@@ -6,6 +6,11 @@
  */
 
 import { SearchEngine } from './search-engine.js';
+import { validateCatalog } from './catalog-validator.js';
+import { notifications } from './notifications.js';
+import { VideoPlayerController } from './video-player.js';
+import { DownloadManager } from './download-manager.js';
+import { modalManager } from './modal-manager.js';
 
 // Clean SVG Icon Library
 const ICONS = {
@@ -41,14 +46,16 @@ const ICONS = {
   glyphPalette: `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"></circle><circle cx="17.5" cy="10.5" r=".5"></circle><circle cx="8.5" cy="7.5" r=".5"></circle><circle cx="6.5" cy="12.5" r=".5"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>`
 };
 
-// Demo User Account Profiles
+// Demo User Account Profiles (Unverified local demo profiles)
 const DEFAULT_USER = {
   name: 'Alex Mercer',
   email: 'alex.mercer@devstore.org',
   initial: 'A',
   avatarBg: 'linear-gradient(135deg, #01875f 0%, #34a853 100%)',
   installedApps: ['org.devstore.chess', 'org.devstore.terminal'],
-  passActive: true
+  passActive: true,
+  isDemo: true,
+  isVerified: false
 };
 
 const DEMO_ACCOUNTS = [
@@ -58,7 +65,9 @@ const DEMO_ACCOUNTS = [
     initial: 'A',
     avatarBg: 'linear-gradient(135deg, #01875f 0%, #34a853 100%)',
     installedApps: ['org.devstore.chess', 'org.devstore.terminal'],
-    passActive: true
+    passActive: true,
+    isDemo: true,
+    isVerified: false
   },
   {
     name: 'Sarah Connor',
@@ -66,7 +75,9 @@ const DEMO_ACCOUNTS = [
     initial: 'S',
     avatarBg: 'linear-gradient(135deg, #1a73e8 0%, #4285f4 100%)',
     installedApps: ['org.devstore.calculator', 'org.devstore.weather', 'org.devstore.audiopulse'],
-    passActive: false
+    passActive: false,
+    isDemo: true,
+    isVerified: false
   }
 ];
 
@@ -88,6 +99,11 @@ export class DevStoreApp {
   constructor() {
     this.searchEngine = new SearchEngine();
     this.catalog = null;
+    this.notifications = notifications;
+    this.videoPlayer = new VideoPlayerController(notifications);
+    this.downloadManager = new DownloadManager(notifications);
+    this.modalManager = modalManager;
+
     this.state = {
       query: '',
       category: 'games', // Google Play defaults to Games
@@ -125,7 +141,9 @@ export class DevStoreApp {
       userAvatarBtn: document.getElementById('user-avatar-btn'),
       profilePopover: document.getElementById('profile-popover'),
       signinModal: document.getElementById('signin-modal'),
-      manageAppsModal: document.getElementById('manage-apps-modal')
+      manageAppsModal: document.getElementById('manage-apps-modal'),
+      infoModal: document.getElementById('info-modal'),
+      notificationsContainer: document.getElementById('store-notifications')
     };
 
     this.state.lightbox = { isOpen: false, appId: null, currentIndex: 0 };
@@ -135,11 +153,19 @@ export class DevStoreApp {
   }
 
   async init() {
-    // Load catalog data
+    // Load and validate catalog data
     try {
       const response = await fetch('data/catalog.json');
       if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-      this.catalog = await response.json();
+      const rawCatalog = await response.json();
+      const validation = validateCatalog(rawCatalog);
+      if (!validation.valid) {
+        console.error('Catalog validation errors:', validation.errors);
+      }
+      if (validation.warnings.length > 0) {
+        console.warn('Catalog validation warnings:', validation.warnings);
+      }
+      this.catalog = validation.sanitizedCatalog;
       this.searchEngine.loadCatalog(this.catalog.applications);
     } catch (err) {
       console.error('Failed to load catalog:', err);
@@ -862,6 +888,14 @@ export class DevStoreApp {
     });
   }
 
+  getReadablePlatform(platform) {
+    const p = (platform || 'windows').toLowerCase();
+    if (p === 'windows') return 'Windows';
+    if (p === 'android') return 'Android';
+    if (p === 'web') return 'Web Browser';
+    return 'Your Device';
+  }
+
   // --------------------------------------------------------------------------
   // Detail View Rendering (Google Play High-Fidelity Parity)
   // --------------------------------------------------------------------------
@@ -924,7 +958,7 @@ export class DevStoreApp {
 
           <div class="detail-cta-row" id="detail-cta-row">
             ${isInstalled ? `
-              <button class="detail-install-btn installed" id="detail-install-cta" onclick="alert('Launching ${this.escapeHtml(app.name)}...')">
+              <button class="detail-install-btn installed" id="detail-install-cta" onclick="devstore.launchApp('${app.id}')">
                 Open
               </button>
               <button class="detail-action-btn" id="detail-uninstall-btn" onclick="devstore.uninstallApp('${app.id}')">
@@ -932,7 +966,7 @@ export class DevStoreApp {
               </button>
             ` : `
               <button class="detail-install-btn" id="detail-install-cta" onclick="devstore.startInstallSimulation('${app.id}')">
-                Install on Windows
+                Install on ${this.getReadablePlatform(this.state.platform)}
               </button>
             `}
             <button class="detail-share-btn" onclick="devstore.shareApp('${app.id}')">
@@ -961,26 +995,7 @@ export class DevStoreApp {
           <div class="detail-media-container">
             <div class="detail-media-track" id="detail-media-track">
               <!-- Video Trailer Preview Card -->
-              <div class="video-preview-card" id="video-card-${app.id}" onclick="devstore.toggleVideoPlay('${app.id}')">
-                <div class="video-poster-art" style="background: linear-gradient(135deg, ${app.iconBg} 0%, #030712 100%);">
-                  <div class="video-play-overlay-btn" aria-label="Play trailer">
-                    ${ICONS.play}
-                  </div>
-                  <div style="margin-top: 12px; font-size: 14px; font-weight: 600; color: #ffffff;">${this.escapeHtml(app.video ? app.video.title : `${app.name} Trailer`)}</div>
-                  <span class="video-duration-badge">${app.video ? app.video.duration : '0:45'}</span>
-                </div>
-                <div class="video-controls-bar">
-                  <div class="video-progress-track">
-                    <div class="video-progress-fill"></div>
-                  </div>
-                  <button class="video-ctrl-btn" onclick="event.stopPropagation(); devstore.toggleVideoPlay('${app.id}')">
-                    ${ICONS.play}
-                  </button>
-                  <button class="video-ctrl-btn" onclick="event.stopPropagation(); devstore.toggleVideoMute('${app.id}')">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-                  </button>
-                </div>
-              </div>
+              ${this.videoPlayer.renderVideoCardHtml(app, this.escapeHtml)}
 
               <!-- High-Resolution Screenshot Cards -->
               ${screenshots.map((s, idx) => `
@@ -1014,7 +1029,7 @@ export class DevStoreApp {
 
           <!-- About this app Section -->
           <div class="detail-about-section">
-            <div class="detail-section-header-link" onclick="alert('Full description view')">
+            <div class="detail-section-header-link">
               <h2 class="detail-section-title">
                 <span>About this app</span>
                 ${ICONS.arrowRight}
@@ -1095,13 +1110,13 @@ export class DevStoreApp {
                   ${ICONS.checkShield}
                 </div>
                 <div class="safety-point-content">
-                  <span class="safety-point-title">Independent security review</span>
-                  <span class="safety-point-subtitle">Verified against OWASP mobile security standards with zero known vulnerabilities</span>
+                  <span class="safety-point-title">Independent source code review</span>
+                  <span class="safety-point-subtitle">Open-source repository available. Users should inspect binaries before installing.</span>
                 </div>
               </div>
             </div>
 
-            <span class="safety-details-link" onclick="alert('All DevStore packages are verified open-source binaries.')">
+            <span class="safety-details-link" onclick="devstore.showDataSafetyDialog('${app.id}')">
               See details
             </span>
           </div>
@@ -1114,8 +1129,7 @@ export class DevStoreApp {
                 ${ICONS.arrowRight}
               </h2>
               <span class="reviews-verified-badge">
-                Ratings and reviews are verified
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12" stroke="#fff" stroke-width="2"></line><line x1="12" y1="8" x2="12.01" y2="8" stroke="#fff" stroke-width="2"></line></svg>
+                Ratings and reviews from community users
               </span>
             </div>
 
@@ -1181,7 +1195,7 @@ export class DevStoreApp {
               <div class="content-rating-info">
                 <span class="content-rating-title">${app.contentRating || 'Rated for 3+'}</span>
                 <span class="content-rating-sub">Users Interact</span>
-                <span class="content-rating-link" onclick="alert('Content rating issued by IARC.')">Learn more</span>
+                <span class="content-rating-link" onclick="devstore.showContentRatingInfo()">Learn more</span>
               </div>
             </div>
           </div>
@@ -1273,7 +1287,7 @@ export class DevStoreApp {
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
             Yes (<span class="helpful-count">${r.helpfulCount || 0}</span>)
           </button>
-          <button class="helpful-thumbs-btn" onclick="alert('Thank you for your feedback!')">
+          <button class="helpful-thumbs-btn" onclick="devstore.showFeedbackThanks()">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
             No
           </button>
@@ -1371,90 +1385,41 @@ export class DevStoreApp {
   }
 
   // --------------------------------------------------------------------------
-  // Video Player Trailer Simulation
+  // --------------------------------------------------------------------------
+  // Video Player Trailer Controls
   // --------------------------------------------------------------------------
   toggleVideoPlay(appId) {
-    const state = this.state.videoState[appId] || { isPlaying: false, isMuted: true, progress: 0 };
-    state.isPlaying = !state.isPlaying;
-    this.state.videoState[appId] = state;
-
-    const card = document.getElementById(`video-card-${appId}`);
-    if (!card) return;
-    const overlayBtn = card.querySelector('.video-play-overlay-btn');
-    const progressFill = card.querySelector('.video-progress-fill');
-
-    if (state.isPlaying) {
-      if (overlayBtn) {
-        overlayBtn.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
-      }
-      if (state.timer) clearInterval(state.timer);
-      state.timer = setInterval(() => {
-        state.progress = (state.progress + 2) % 100;
-        if (progressFill) progressFill.style.width = `${state.progress}%`;
-      }, 200);
-    } else {
-      if (overlayBtn) overlayBtn.innerHTML = ICONS.play;
-      if (state.timer) clearInterval(state.timer);
-    }
+    const app = this.searchEngine.getAppById(appId);
+    this.videoPlayer.togglePlay(appId, app);
+    this.state.videoState[appId] = this.videoPlayer.getState(appId);
   }
 
   toggleVideoMute(appId) {
-    const state = this.state.videoState[appId] || { isPlaying: false, isMuted: true, progress: 0 };
-    state.isMuted = !state.isMuted;
-    this.state.videoState[appId] = state;
-    alert(state.isMuted ? 'Video audio muted' : 'Video audio unmuted');
+    this.videoPlayer.toggleMute(appId);
+    this.state.videoState[appId] = this.videoPlayer.getState(appId);
   }
 
   // --------------------------------------------------------------------------
-  // Interactive Animated Install State Simulation
+  // Genuine Download & Installation Capability Check
   // --------------------------------------------------------------------------
-  startInstallSimulation(appId) {
+  async startInstallSimulation(appId) {
     const app = this.searchEngine.getAppById(appId);
     if (!app) return;
     const btn = document.getElementById('detail-install-cta');
-    if (!btn) return;
-
-    btn.classList.add('installing');
-    btn.innerHTML = `<div class="install-spinner"></div> <span>Installing 0%</span>`;
-
-    let percent = 0;
-    const interval = setInterval(() => {
-      percent += Math.floor(Math.random() * 20) + 15;
-      if (percent >= 100) {
-        percent = 100;
-        clearInterval(interval);
-        btn.innerHTML = `<div class="install-spinner"></div> <span>Installing 100%</span>`;
-        setTimeout(() => {
-          if (this.user) {
-            if (!this.user.installedApps) this.user.installedApps = [];
-            if (!this.user.installedApps.includes(appId)) {
-              this.user.installedApps.push(appId);
-              try {
-                localStorage.setItem('devstore_user', JSON.stringify(this.user));
-              } catch (e) {
-                console.warn(e);
-              }
-            }
+    const result = await this.downloadManager.attemptDownload(app, this.state.platform, btn);
+    if (result && result.success && result.state === 'web-launched') {
+      if (this.user) {
+        if (!this.user.installedApps) this.user.installedApps = [];
+        if (!this.user.installedApps.includes(appId)) {
+          this.user.installedApps.push(appId);
+          try {
+            localStorage.setItem('devstore_user', JSON.stringify(this.user));
+          } catch (e) {
+            console.warn(e);
           }
-          btn.classList.remove('installing');
-          btn.classList.add('installed');
-          btn.innerHTML = `Open`;
-          btn.onclick = () => alert(`Launching ${app.name}...`);
-
-          const ctaRow = document.getElementById('detail-cta-row');
-          if (ctaRow && !document.getElementById('detail-uninstall-btn')) {
-            const unBtn = document.createElement('button');
-            unBtn.className = 'detail-action-btn';
-            unBtn.id = 'detail-uninstall-btn';
-            unBtn.textContent = 'Uninstall';
-            unBtn.onclick = () => devstore.uninstallApp(appId);
-            ctaRow.insertBefore(unBtn, ctaRow.children[1]);
-          }
-        }, 350);
-      } else {
-        btn.innerHTML = `<div class="install-spinner"></div> <span>Installing ${percent}%</span>`;
+        }
       }
-    }, 150);
+    }
   }
 
   uninstallApp(appId) {
@@ -1463,10 +1428,16 @@ export class DevStoreApp {
       try {
         localStorage.setItem('devstore_user', JSON.stringify(this.user));
       } catch (e) {
-        console.warn(e);
+        console.warn('Failed to persist user updates:', e);
       }
     }
-    this.renderDetailView(appId);
+    if (this.state.activeAppId === appId) {
+      this.renderDetailView(appId);
+    }
+    this.renderManageAppsListTab();
+    if (this.dom.profilePopover && this.dom.profilePopover.classList.contains('open')) {
+      this.renderProfilePopover();
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -1559,21 +1530,26 @@ export class DevStoreApp {
       s.addEventListener('click', () => updateStars(parseInt(s.getAttribute('data-star'), 10)));
     });
 
-    const close = () => this.dom.reviewModal.classList.remove('open');
-    document.getElementById('review-close-x').addEventListener('click', close);
-    document.getElementById('review-cancel-btn').addEventListener('click', close);
-    document.getElementById('review-submit-btn').addEventListener('click', () => {
+    const close = () => {
+      this.dom.reviewModal.classList.remove('open');
+      this.modalManager.registerClose('review-modal');
+    };
+    this.modalManager.registerOpen('review-modal', this.dom.reviewModal, close);
+
+    document.getElementById('review-close-x')?.addEventListener('click', close);
+    document.getElementById('review-cancel-btn')?.addEventListener('click', close);
+    document.getElementById('review-submit-btn')?.addEventListener('click', () => {
       const text = document.getElementById('review-comment-input').value.trim();
       if (!text) {
-        alert('Please enter your review comment.');
+        this.notifications.notify('Please enter your review comment before posting.', 'warning');
         return;
       }
       const newReview = {
         id: `rev-user-${Date.now()}`,
-        author: this.user ? this.user.name : 'You',
+        author: this.user ? this.user.name : 'Community User',
         avatar: this.user ? this.user.avatarBg : '#01875f',
         rating: selectedRating,
-        date: 'October 22, 2026',
+        date: 'Recent',
         device: 'Desktop',
         helpfulCount: 0,
         comment: text
@@ -1581,6 +1557,7 @@ export class DevStoreApp {
       if (!app.reviews) app.reviews = [];
       app.reviews.unshift(newReview);
       close();
+      this.notifications.notify('Your review has been posted!', 'success');
       this.renderDetailView(appId);
     });
   }
@@ -1590,7 +1567,7 @@ export class DevStoreApp {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).catch(() => {});
     }
-    alert(`Link copied to clipboard!\n${url}`);
+    this.notifications.notify(`Link copied to clipboard: ${url}`, 'info');
   }
 
   toggleWishlist(appId) {
@@ -1604,11 +1581,11 @@ export class DevStoreApp {
     if (idx > -1) {
       this.user.wishlist.splice(idx, 1);
       if (btn) btn.innerHTML = `${ICONS.playPass} <span>Add to wishlist</span>`;
-      alert('Removed from your wishlist.');
+      this.notifications.notify('Removed from your wishlist.', 'info');
     } else {
       this.user.wishlist.push(appId);
       if (btn) btn.innerHTML = `${ICONS.checkShield} <span>In wishlist</span>`;
-      alert('Saved to your wishlist!');
+      this.notifications.notify('Saved to your wishlist!', 'success');
     }
     try {
       localStorage.setItem('devstore_user', JSON.stringify(this.user));
@@ -1622,7 +1599,7 @@ export class DevStoreApp {
   }
 
   // --------------------------------------------------------------------------
-  // Google Play Profile Popover & User Authentication
+  // Google Play Profile Popover & User Authentication (Truthful Demo Profile)
   // --------------------------------------------------------------------------
   renderUserAvatar() {
     if (!this.dom.userAvatarBtn) return;
@@ -1630,7 +1607,7 @@ export class DevStoreApp {
       this.dom.userAvatarBtn.classList.add('signed-in');
       this.dom.userAvatarBtn.style.background = this.user.avatarBg || 'linear-gradient(135deg, #01875f 0%, #34a853 100%)';
       this.dom.userAvatarBtn.innerHTML = `<span>${this.escapeHtml(this.user.initial || (this.user.name ? this.user.name[0] : 'A'))}</span>`;
-      this.dom.userAvatarBtn.setAttribute('aria-label', `Google Play Account: ${this.user.name} (${this.user.email})`);
+      this.dom.userAvatarBtn.setAttribute('aria-label', `DevStore Demo Profile: ${this.user.name} (${this.user.email})`);
     } else {
       this.dom.userAvatarBtn.classList.remove('signed-in');
       this.dom.userAvatarBtn.style.background = '';
@@ -1686,12 +1663,12 @@ export class DevStoreApp {
           <div class="popover-avatar-large" style="background:${this.user.avatarBg || 'linear-gradient(135deg, #01875f 0%, #34a853 100%)'}">
             ${initial}
           </div>
-          <div class="popover-avatar-badge" title="Verified Account">
-            ${ICONS.verified}
+          <div class="demo-profile-badge" title="Demo profile - unverified">
+            Demo &bull; Unverified
           </div>
         </div>
         <div class="popover-user-name">${this.escapeHtml(this.user.name)}</div>
-        <div class="popover-user-email">${this.escapeHtml(this.user.email)}</div>
+        <div class="popover-user-email">${this.escapeHtml(this.user.email)} (Demo Account)</div>
         <button class="popover-manage-account-btn" id="popover-manage-account-cta">
           Manage your DevStore Account
         </button>
@@ -1768,7 +1745,10 @@ export class DevStoreApp {
     document.getElementById('popover-close-btn')?.addEventListener('click', () => this.closeProfilePopover());
 
     document.getElementById('popover-manage-account-cta')?.addEventListener('click', () => {
-      alert(`DevStore Account Management:\nName: ${this.user.name}\nEmail: ${this.user.email}\nSecurity: Passkey Active\nStorage: Free Tier (64 GB)`);
+      this.notifications.showDialog({
+        title: 'DevStore Demo Profile',
+        message: `Profile Name: ${this.user.name}\nEmail: ${this.user.email}\nStatus: Local Demo (Unverified)\n\nDevStore runs entirely client-side without a remote authentication server. This account profile is stored locally in your browser session.`
+      });
     });
 
     document.getElementById('popover-item-manage-apps')?.addEventListener('click', () => {
@@ -1777,23 +1757,32 @@ export class DevStoreApp {
     });
 
     document.getElementById('popover-item-payments')?.addEventListener('click', () => {
-      alert('Payments & Subscriptions: All software on DevStore is 100% free and open-source. No credit card required.');
+      this.notifications.showDialog({
+        title: 'Payments & Subscriptions',
+        message: 'All software cataloged on DevStore is 100% free and open-source. DevStore does not process credit cards, payments, or subscriptions.'
+      });
     });
 
     document.getElementById('popover-item-offers')?.addEventListener('click', () => {
-      alert('DevStore Offers: You have 2 new community software packages available for preview!');
+      this.notifications.notify('DevStore Offers: 2 community software packages available for preview in this catalog.', 'info');
     });
 
     document.getElementById('popover-item-pass')?.addEventListener('click', () => {
-      alert('DevStore Pass: Included free for all verified developers. Zero ads, zero in-app purchases.');
+      this.notifications.showDialog({
+        title: 'DevStore Pass',
+        message: 'DevStore Pass is included free for all users. All cataloged applications are free of third-party advertisements and tracker frameworks.'
+      });
     });
 
     document.getElementById('popover-item-settings')?.addEventListener('click', () => {
-      alert('DevStore Settings: Auto-updates enabled for verified applications on Windows and Android.');
+      this.notifications.showDialog({
+        title: 'DevStore Settings',
+        message: 'Client Settings: Static catalog mode active. Automatic background downloads are disabled to protect system integrity.'
+      });
     });
 
     document.getElementById('popover-item-help')?.addEventListener('click', () => {
-      alert('Help & Feedback: Visit our open documentation at github.com/morluto/rea');
+      this.showHelpInfo();
     });
 
     document.getElementById('popover-item-signout')?.addEventListener('click', () => {
@@ -1802,17 +1791,17 @@ export class DevStoreApp {
 
     document.getElementById('popover-link-privacy')?.addEventListener('click', (e) => {
       e.preventDefault();
-      alert('DevStore Privacy: Zero analytics trackers, zero telemetry, local client-side catalog.');
+      this.showFooterInfo('privacy');
     });
 
     document.getElementById('popover-link-terms')?.addEventListener('click', (e) => {
       e.preventDefault();
-      alert('DevStore Terms: Distributed under open source and original developer licenses.');
+      this.showFooterInfo('terms');
     });
   }
 
   // --------------------------------------------------------------------------
-  // Google Account Style Sign-In Modal Dialog
+  // Accessible Profile Selection Modal Dialog (Replaces prompt/alerts)
   // --------------------------------------------------------------------------
   openSignInModal() {
     this.closeProfilePopover();
@@ -1832,12 +1821,12 @@ export class DevStoreApp {
           </button>
         </div>
 
-        <h2 class="signin-heading" id="signin-heading">Sign in</h2>
-        <p class="signin-subheading">to continue to DevStore</p>
+        <h2 class="signin-heading" id="signin-heading">DevStore Profile Selection</h2>
+        <p class="signin-subheading">Select a local demo profile or test account (unverified demo mode)</p>
 
         <!-- 1-Click Quick Demo Accounts -->
         <div class="signin-demo-accounts">
-          <div class="demo-accounts-title">Quick demo accounts (1-click)</div>
+          <div class="demo-accounts-title">Quick demo profiles (1-click)</div>
           ${DEMO_ACCOUNTS.map((acc, idx) => `
             <div class="demo-account-item" data-account-idx="${idx}" tabindex="0" role="button">
               <div class="demo-account-avatar" style="background:${acc.avatarBg}">
@@ -1851,25 +1840,33 @@ export class DevStoreApp {
           `).join('')}
         </div>
 
+        <!-- Inline Create Account Form Container -->
+        <div id="signin-create-form" style="display:none; margin: 12px 0; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dadce0;">
+          <label class="signin-label" for="signin-create-name" style="font-size:12px; font-weight:600; color:#3c4043; display:block; margin-bottom:4px;">Full Name</label>
+          <input type="text" id="signin-create-name" class="signin-outlined-input" placeholder="e.g. Linus Torvalds" style="margin-bottom:8px;" />
+          <button type="button" class="detail-install-btn" id="signin-confirm-create-btn" style="width:100%; padding:8px;">Create Demo Profile</button>
+        </div>
+
         <!-- Floating or Outlined Email / Phone input -->
         <div class="signin-field-group">
-          <label class="signin-label" for="signin-email-input">Email or phone</label>
+          <label class="signin-label" for="signin-email-input">Email address</label>
           <input type="email" id="signin-email-input" class="signin-outlined-input" placeholder="user@devstore.org" autocomplete="email" />
-          <button type="button" class="signin-helper-link" id="signin-forgot-btn">Forgot email?</button>
+          <button type="button" class="signin-helper-link" id="signin-forgot-btn">Demo accounts guide</button>
         </div>
 
         <p class="signin-guest-note">
-          Not your computer? Use Guest mode to sign in privately. <a href="#learn-more" id="signin-learn-more">Learn more</a>
+          Notice: Profiles in DevStore are local demonstrations and do not verify remote emails or transmit credentials. <a href="#learn-more" id="signin-learn-more">Learn more</a>
         </p>
 
         <div class="signin-actions-row">
           <button type="button" class="signin-create-btn" id="signin-create-btn">Create account</button>
-          <button type="button" class="signin-next-btn" id="signin-next-btn">Next</button>
+          <button type="button" class="signin-next-btn" id="signin-next-btn">Sign in</button>
         </div>
       </div>
     `;
 
     this.dom.signinModal.classList.add('open');
+    this.modalManager.registerOpen('signin-modal', this.dom.signinModal, () => this.closeSignInModal());
 
     // Bind Sign In events
     document.getElementById('signin-close-x')?.addEventListener('click', () => this.closeSignInModal());
@@ -1896,7 +1893,7 @@ export class DevStoreApp {
     const submitEmail = () => {
       const email = emailInput.value.trim();
       if (!email) {
-        alert('Please enter an email address or select a quick demo account.');
+        this.notifications.notify('Please enter an email address or select a demo profile above.', 'warning');
         emailInput.focus();
         return;
       }
@@ -1911,28 +1908,50 @@ export class DevStoreApp {
       }
     });
 
-    document.getElementById('signin-create-btn')?.addEventListener('click', () => {
-      const name = prompt('Enter your full name for DevStore:');
-      if (name && name.trim()) {
-        const email = `${name.toLowerCase().replace(/\s+/g, '.')}@devstore.org`;
-        this.handleSignIn({
-          name: name.trim(),
-          email: email,
-          initial: name.trim()[0].toUpperCase(),
-          avatarBg: 'linear-gradient(135deg, #188038 0%, #34a853 100%)',
-          installedApps: ['org.devstore.chess'],
-          passActive: true
-        });
+    const createForm = document.getElementById('signin-create-form');
+    const createBtn = document.getElementById('signin-create-btn');
+    const createNameInput = document.getElementById('signin-create-name');
+    const confirmCreateBtn = document.getElementById('signin-confirm-create-btn');
+
+    createBtn?.addEventListener('click', () => {
+      if (createForm) {
+        createForm.style.display = createForm.style.display === 'none' ? 'block' : 'none';
+        if (createForm.style.display === 'block') {
+          createNameInput?.focus();
+        }
       }
     });
 
+    confirmCreateBtn?.addEventListener('click', () => {
+      const name = createNameInput ? createNameInput.value.trim() : '';
+      if (!name) {
+        this.notifications.notify('Please enter your name for the demo profile.', 'warning');
+        createNameInput?.focus();
+        return;
+      }
+      const email = `${name.toLowerCase().replace(/\s+/g, '.')}@devstore.org`;
+      this.handleSignIn({
+        name: name,
+        email: email,
+        initial: name[0].toUpperCase(),
+        avatarBg: 'linear-gradient(135deg, #188038 0%, #34a853 100%)',
+        installedApps: ['org.devstore.chess'],
+        passActive: true,
+        isDemo: true,
+        isVerified: false
+      });
+    });
+
     document.getElementById('signin-forgot-btn')?.addEventListener('click', () => {
-      alert('Use any of the 1-click quick demo accounts above to explore DevStore!');
+      this.notifications.notify('Select any 1-click quick demo profile above to explore user library features.', 'info');
     });
 
     document.getElementById('signin-learn-more')?.addEventListener('click', (e) => {
       e.preventDefault();
-      alert('DevStore Guest Mode: No data or browsing history is stored on your device.');
+      this.notifications.showDialog({
+        title: 'DevStore Demo Authentication',
+        message: 'DevStore operates in a client-side sandbox. All profiles are local demonstrations without external credential validation or identity verification.'
+      });
     });
 
     setTimeout(() => emailInput?.focus(), 50);
@@ -1941,16 +1960,17 @@ export class DevStoreApp {
   closeSignInModal() {
     if (!this.dom.signinModal) return;
     this.dom.signinModal.classList.remove('open');
+    this.modalManager.registerClose('signin-modal');
   }
 
   handleSignIn(accountOrEmail) {
     if (typeof accountOrEmail === 'object' && accountOrEmail !== null) {
-      this.user = { ...accountOrEmail };
+      this.user = { ...accountOrEmail, isDemo: true, isVerified: false };
     } else {
       const email = String(accountOrEmail);
       const matched = DEMO_ACCOUNTS.find(a => a.email.toLowerCase() === email.toLowerCase());
       if (matched) {
-        this.user = { ...matched };
+        this.user = { ...matched, isDemo: true, isVerified: false };
       } else {
         const localPart = email.split('@')[0] || 'User';
         const formattedName = localPart.split('.')[0];
@@ -1961,7 +1981,9 @@ export class DevStoreApp {
           initial: capName[0] || 'U',
           avatarBg: 'linear-gradient(135deg, #01875f 0%, #34a853 100%)',
           installedApps: ['org.devstore.chess', 'org.devstore.calculator'],
-          passActive: true
+          passActive: true,
+          isDemo: true,
+          isVerified: false
         };
       }
     }
@@ -1974,6 +1996,7 @@ export class DevStoreApp {
 
     this.renderUserAvatar();
     this.closeSignInModal();
+    this.notifications.notify(`Signed in as ${this.user.name} (Demo Profile)`, 'success');
   }
 
   handleSignOut() {
@@ -1985,10 +2008,11 @@ export class DevStoreApp {
     }
     this.closeProfilePopover();
     this.renderUserAvatar();
+    this.notifications.notify('Signed out of DevStore demo profile.', 'info');
   }
 
   // --------------------------------------------------------------------------
-  // Google Play "Manage apps & device" Modal Dialog
+  // Google Play "Manage apps & device" Modal Dialog (Truthful Demo Status)
   // --------------------------------------------------------------------------
   openManageAppsModal(activeTab = 'overview') {
     if (!this.dom.manageAppsModal || !this.user) return;
@@ -2013,6 +2037,7 @@ export class DevStoreApp {
     `;
 
     this.dom.manageAppsModal.classList.add('open');
+    this.modalManager.registerOpen('manage-apps-modal', this.dom.manageAppsModal, () => this.closeManageAppsModal());
 
     const closeBtn = document.getElementById('manage-close-x');
     closeBtn?.addEventListener('click', () => this.closeManageAppsModal());
@@ -2046,6 +2071,7 @@ export class DevStoreApp {
   closeManageAppsModal() {
     if (!this.dom.manageAppsModal) return;
     this.dom.manageAppsModal.classList.remove('open');
+    this.modalManager.registerClose('manage-apps-modal');
   }
 
   renderManageOverviewTab() {
@@ -2057,17 +2083,17 @@ export class DevStoreApp {
     const storagePercent = Math.min(100, Math.round((usedStorage / 64) * 100));
 
     body.innerHTML = `
-      <!-- Play Protect Card -->
+      <!-- Catalog Integrity & Safety Card -->
       <div class="protect-status-card">
         <div class="protect-icon-circle">
           ${ICONS.checkShield}
         </div>
         <div style="flex:1;">
-          <div class="protect-title">No harmful apps found</div>
-          <div class="protect-subtitle">Play Protect scanned today at 11:20 AM</div>
+          <div class="protect-title">Catalog Integrity &amp; Safety (Demo)</div>
+          <div class="protect-subtitle">DevStore indexes open-source packages &bull; No active background anti-malware service</div>
         </div>
         <button class="detail-share-btn" style="padding:6px 14px; font-size:13px;" id="protect-scan-btn">
-          Scan
+          Inspect
         </button>
       </div>
 
@@ -2077,8 +2103,8 @@ export class DevStoreApp {
           <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
         </div>
         <div style="flex:1;">
-          <div class="protect-title">All apps up to date</div>
-          <div class="protect-subtitle">Checked today &bull; Auto-update active</div>
+          <div class="protect-title">Catalog Version Check</div>
+          <div class="protect-subtitle">DevStore Manifest v1.0.0 &bull; Static client repository</div>
         </div>
         <button class="detail-share-btn" style="padding:6px 14px; font-size:13px;" id="updates-check-btn">
           Check
@@ -2088,14 +2114,14 @@ export class DevStoreApp {
       <!-- Storage Status Card -->
       <div class="storage-status-card">
         <div class="storage-header">
-          <div class="storage-title">Device Storage</div>
+          <div class="storage-title">Simulated Device Storage</div>
           <span style="font-size:13px; color:#5f6368; font-weight:500;">${usedStorage} GB of 64 GB used</span>
         </div>
         <div class="storage-bar-track">
           <div class="storage-bar-fill" style="width: ${storagePercent}%;"></div>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
-          <span style="font-size:12px; color:#5f6368;">${installedCount} applications installed</span>
+          <span style="font-size:12px; color:#5f6368;">${installedCount} applications in local library</span>
           <button class="signin-helper-link" style="margin:0; font-size:13px;" id="storage-view-apps-btn">View apps</button>
         </div>
       </div>
@@ -2107,7 +2133,7 @@ export class DevStoreApp {
         </div>
         <div style="flex:1;">
           <div class="protect-title">Ratings &amp; reviews</div>
-          <div class="protect-subtitle">Manage your reviews and feedback</div>
+          <div class="protect-subtitle">Manage your local session reviews and feedback</div>
         </div>
         <button class="detail-share-btn" style="padding:6px 14px; font-size:13px;" id="reviews-manage-btn">
           Manage
@@ -2116,11 +2142,14 @@ export class DevStoreApp {
     `;
 
     document.getElementById('protect-scan-btn')?.addEventListener('click', () => {
-      alert('Play Protect: Scanning installed apps for vulnerabilities... All packages clean and verified.');
+      this.notifications.showDialog({
+        title: 'Catalog Integrity & Safety Check',
+        message: 'DevStore indexes open-source software and does not run a device-level anti-virus background scanner. Downloaded packages should be verified with SHA-256 checksums and source code audits before running.'
+      });
     });
 
     document.getElementById('updates-check-btn')?.addEventListener('click', () => {
-      alert('DevStore Update Service: All installed applications are on their latest release.');
+      this.notifications.notify('DevStore Version Check: All applications correspond to static catalog v1.0.0. No remote update server.', 'info');
     });
 
     document.getElementById('storage-view-apps-btn')?.addEventListener('click', () => {
@@ -2129,7 +2158,7 @@ export class DevStoreApp {
     });
 
     document.getElementById('reviews-manage-btn')?.addEventListener('click', () => {
-      alert('You have contributed reviews on DevStore. Thank you for helping the developer community!');
+      this.notifications.notify('You have contributed reviews to the community feedback feed.', 'info');
     });
   }
 
@@ -2145,7 +2174,7 @@ export class DevStoreApp {
     if (installedApps.length === 0) {
       body.innerHTML = `
         <div class="empty-state" style="padding:32px 16px;">
-          <div class="empty-state-title">No Apps Installed</div>
+          <div class="empty-state-title">No Apps in Library</div>
           <div class="empty-state-desc">Explore the catalog to discover games, tools, and developer utilities.</div>
           <button class="detail-install-btn" id="browse-store-btn" style="margin-top:12px;">Browse DevStore</button>
         </div>
@@ -2181,7 +2210,7 @@ export class DevStoreApp {
                 <button class="detail-share-btn app-open-btn" data-app-id="${app.id}" style="padding:6px 14px; font-size:12px;" title="Open app">
                   Open
                 </button>
-                <button class="popover-close-btn app-uninstall-btn" data-app-id="${app.id}" style="color:#d93025;" aria-label="Uninstall ${this.escapeHtml(app.name)}" title="Uninstall app">
+                <button class="popover-close-btn app-uninstall-btn" data-app-id="${app.id}" style="color:#d93025;" aria-label="Remove ${this.escapeHtml(app.name)}" title="Remove app">
                   ${ICONS.trash}
                 </button>
               </div>
@@ -2196,8 +2225,7 @@ export class DevStoreApp {
     openBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const appId = btn.getAttribute('data-app-id');
-        const app = this.searchEngine.getAppById(appId);
-        alert(`Launching ${app ? app.name : appId} on Windows PC...`);
+        this.launchApp(appId);
       });
     });
 
@@ -2206,26 +2234,94 @@ export class DevStoreApp {
       btn.addEventListener('click', () => {
         const appId = btn.getAttribute('data-app-id');
         const app = this.searchEngine.getAppById(appId);
-        const confirmed = confirm(`Are you sure you want to uninstall ${app ? app.name : appId}?`);
-        if (confirmed) {
-          this.uninstallApp(appId);
-        }
+        const appName = app ? app.name : appId;
+        this.notifications.showDialog({
+          title: `Remove ${appName}`,
+          message: `Are you sure you want to remove "${appName}" from your installed library?`,
+          confirmText: 'Remove',
+          cancelText: 'Cancel',
+          onConfirm: () => {
+            this.uninstallApp(appId);
+            this.notifications.notify(`"${appName}" removed from library.`, 'info');
+          }
+        });
       });
     });
   }
 
-  uninstallApp(appId) {
-    if (!this.user || !this.user.installedApps) return;
-    this.user.installedApps = this.user.installedApps.filter(id => id !== appId);
-    try {
-      localStorage.setItem('devstore_user', JSON.stringify(this.user));
-    } catch (e) {
-      console.warn('Failed to persist user updates:', e);
+  // --------------------------------------------------------------------------
+  // Accessible Helper Dialogs & Notifications
+  // --------------------------------------------------------------------------
+  launchApp(appId) {
+    const app = this.searchEngine.getAppById(appId);
+    if (!app) return;
+    const webUrl = app.downloads && app.downloads.web;
+    if (webUrl) {
+      this.notifications.notify(`Launching web application: ${app.name}`, 'info');
+      window.open(webUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      this.notifications.showDialog({
+        title: `Launch ${app.name}`,
+        message: `"${app.name}" is a desktop/mobile application package. In this web demo environment, local native application execution is simulated.`
+      });
     }
-    this.renderManageAppsListTab();
-    if (this.dom.profilePopover && this.dom.profilePopover.classList.contains('open')) {
-      this.renderProfilePopover();
-    }
+  }
+
+  showHelpInfo() {
+    this.notifications.showDialog({
+      title: 'Help & Documentation',
+      message: 'DevStore is an open-source application catalog browser. Explore categories, filter by platform (Windows, Android, Web), and review genuine software packages.',
+      confirmText: 'Got it'
+    });
+  }
+
+  showFooterInfo(topic) {
+    const topics = {
+      terms: {
+        title: 'Terms of Service',
+        message: 'DevStore indexes open-source and freely distributable applications under their respective original licenses. All trademarks and logos belong to their respective owners.'
+      },
+      privacy: {
+        title: 'Privacy Policy',
+        message: 'DevStore operates entirely client-side without third-party tracking, advertising identifiers, or server-side telemetry collection.'
+      },
+      developers: {
+        title: 'For Developers',
+        message: 'Publishing to DevStore is open. Submit application metadata and manifests via GitHub pull requests to the repository.'
+      },
+      devices: {
+        title: 'Supported Devices',
+        message: 'DevStore catalogs packages for Windows PC, Android devices, and modern web browsers.'
+      }
+    };
+    const item = topics[topic] || { title: 'DevStore Information', message: 'Open-source software distribution platform.' };
+    this.notifications.showDialog({
+      title: item.title,
+      message: item.message,
+      confirmText: 'Close'
+    });
+  }
+
+  showDataSafetyDialog(appId) {
+    const app = this.searchEngine.getAppById(appId);
+    const name = app ? app.name : 'This application';
+    this.notifications.showDialog({
+      title: `Data Safety: ${name}`,
+      message: 'Safety claims on DevStore reflect open-source peer reviews and developer declarations. Because DevStore does not host proprietary signing keys, users are encouraged to verify checksums and source code independently before installation.',
+      confirmText: 'Understood'
+    });
+  }
+
+  showContentRatingInfo() {
+    this.notifications.showDialog({
+      title: 'Content Rating Information',
+      message: 'DevStore displays age ratings and interactive elements based on developer declarations and open-source standards.',
+      confirmText: 'Got it'
+    });
+  }
+
+  showFeedbackThanks() {
+    this.notifications.notify('Thank you for your feedback on this review!', 'info');
   }
 
   escapeHtml(str) {
@@ -2238,3 +2334,4 @@ export class DevStoreApp {
       .replace(/'/g, '&#039;');
   }
 }
+
