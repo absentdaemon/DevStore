@@ -47,40 +47,6 @@ const ICONS = {
   glyphPalette: `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"></circle><circle cx="17.5" cy="10.5" r=".5"></circle><circle cx="8.5" cy="7.5" r=".5"></circle><circle cx="6.5" cy="12.5" r=".5"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>`
 };
 
-// Demo User Account Profiles (Unverified local demo profiles)
-const DEFAULT_USER = {
-  name: 'Alex Mercer',
-  email: 'alex.mercer@devstore.org',
-  initial: 'A',
-  avatarBg: 'linear-gradient(135deg, #01875f 0%, #34a853 100%)',
-  installedApps: ['org.devstore.chess', 'org.devstore.terminal'],
-  passActive: true,
-  isDemo: true,
-  isVerified: false
-};
-
-const DEMO_ACCOUNTS = [
-  {
-    name: 'Alex Mercer',
-    email: 'alex.mercer@devstore.org',
-    initial: 'A',
-    avatarBg: 'linear-gradient(135deg, #01875f 0%, #34a853 100%)',
-    installedApps: ['org.devstore.chess', 'org.devstore.terminal'],
-    passActive: true,
-    isDemo: true,
-    isVerified: false
-  },
-  {
-    name: 'Sarah Connor',
-    email: 'sarah.c@devstore.org',
-    initial: 'S',
-    avatarBg: 'linear-gradient(135deg, #1a73e8 0%, #4285f4 100%)',
-    installedApps: ['org.devstore.calculator', 'org.devstore.weather', 'org.devstore.audiopulse'],
-    passActive: false,
-    isDemo: true,
-    isVerified: false
-  }
-];
 
 function getGlyphSvg(glyphName) {
   switch (glyphName) {
@@ -117,12 +83,21 @@ export class DevStoreApp {
       isSearchOpen: false
     };
 
-    // User Account State
+    // User Account State (null when unauthenticated)
+    this.user = null;
     try {
       const savedUser = localStorage.getItem('devstore_user');
-      this.user = savedUser ? JSON.parse(savedUser) : { ...DEFAULT_USER };
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed && !parsed.isDemo && parsed.id) {
+          this.user = parsed;
+        } else {
+          localStorage.removeItem('devstore_user');
+          this.user = null;
+        }
+      }
     } catch {
-      this.user = { ...DEFAULT_USER };
+      this.user = null;
     }
 
     // DOM Elements
@@ -157,35 +132,12 @@ export class DevStoreApp {
   }
 
   async init() {
-    // Sync with Supabase session if configured
-    if (this.backend && this.backend.isConfigured) {
-      try {
-        const sessionProfile = await this.backend.getCurrentProfile();
-        if (sessionProfile) {
-          this.user = sessionProfile;
-        }
-      } catch (e) {
-        console.warn('Could not sync initial Supabase profile:', e);
-      }
-      this.backend.onAuthStateChange(async (event) => {
-        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          const p = await this.backend.getCurrentProfile();
-          if (p) {
-            this.user = p;
-            this.renderUserAvatar();
-          }
-        } else if (event === 'SIGNED_OUT') {
-          this.user = null;
-          this.renderUserAvatar();
-        }
-      });
-    }
-
-    // Load and validate catalog data
+    // 1. Load and validate catalog data immediately for fast initial rendering
     try {
       const response = await fetch('data/catalog.json');
       if (!response.ok) throw new Error(`HTTP error ${response.status}`);
       const rawCatalog = await response.json();
+
       const validation = validateCatalog(rawCatalog);
       if (!validation.valid) {
         console.error('Catalog validation errors:', validation.errors);
@@ -206,19 +158,104 @@ export class DevStoreApp {
       return;
     }
 
-    // Render user profile avatar in header
+    // 2. Render initial view and bind navigation immediately
     this.renderUserAvatar();
-
-    // Set up event listeners
     this.bindEvents();
-
-    // Parse initial URL query state
     this.handleRouteFromUrl();
 
     // Listen to browser Back/Forward history events
     window.addEventListener('popstate', () => {
       this.handleRouteFromUrl(false);
     });
+
+    // 3. Check for password recovery hash / params in URL
+    if (window.location.hash.includes('reset-password') || window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery')) {
+      setTimeout(() => this.openPasswordRecoveryModal(), 200);
+    }
+
+    // 4. Connect to Supabase session & fetch published apps in background
+    if (this.backend && this.backend.isConfigured) {
+      this.backend.onAuthStateChange(async (event) => {
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+          const p = await this.backend.getCurrentProfile();
+          if (p) {
+            this.user = p;
+            try { localStorage.setItem('devstore_user', JSON.stringify(p)); } catch {}
+            this.renderUserAvatar();
+          }
+        } else if (event === 'SIGNED_OUT') {
+          this.user = null;
+          try { localStorage.removeItem('devstore_user'); } catch {}
+          this.renderUserAvatar();
+        } else if (event === 'PASSWORD_RECOVERY') {
+          this.openPasswordRecoveryModal();
+        }
+      });
+
+      // Background session sync
+      (async () => {
+        try {
+          const conn = await this.backend.checkConnection();
+          if (conn && conn.connected) {
+            const sessionProfile = await this.backend.getCurrentProfile();
+            if (sessionProfile) {
+              this.user = sessionProfile;
+              try { localStorage.setItem('devstore_user', JSON.stringify(sessionProfile)); } catch {}
+              this.renderUserAvatar();
+            } else {
+              this.user = null;
+              try { localStorage.removeItem('devstore_user'); } catch {}
+              this.renderUserAvatar();
+            }
+
+            // Sync dynamic applications published in Supabase
+            const publishedApps = await this.backend.fetchPublishedApplications();
+            if (Array.isArray(publishedApps) && publishedApps.length > 0) {
+              const mapped = publishedApps.map(pa => ({
+                id: pa.id,
+                name: pa.name,
+                tagline: pa.summary || '',
+                developer: pa.developer_name || 'Verified Developer',
+                category: pa.category || 'utilities',
+                rating: 0,
+                reviewCount: (pa.reviews || []).length,
+                iconBg: '#0f172a',
+                iconColor: '#38bdf8',
+                iconGlyph: 'devstore',
+                version: (pa.app_versions && pa.app_versions[0]) ? pa.app_versions[0].version : '1.0.0',
+                size: 'Verified package',
+                platforms: (pa.app_versions || []).map(v => v.platform),
+                license: 'Verified Distribution',
+                description: pa.description || '',
+                isVerifiedPublisher: true,
+                hasVerifiedPackage: true,
+                features: [],
+                permissions: [],
+                screenshots: [],
+                reviews: (pa.reviews || []).map(r => ({
+                  id: r.id,
+                  author: r.profiles?.full_name || 'Verified User',
+                  rating: r.rating,
+                  comment: r.comment,
+                  helpfulCount: r.helpful_count || 0,
+                  date: new Date(r.created_at).toLocaleDateString()
+                }))
+              }));
+
+              const existingIds = new Set(this.catalog.applications.map(a => a.id));
+              const newApps = mapped.filter(a => !existingIds.has(a.id));
+              if (newApps.length > 0) {
+                this.catalog.applications = [...newApps, ...this.catalog.applications];
+                this.searchEngine.loadCatalog(this.catalog.applications);
+                this.renderCurrentView();
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Background Supabase sync error:', e);
+        }
+      })();
+    }
   }
 
   bindEvents() {
@@ -847,7 +884,7 @@ export class DevStoreApp {
           <span class="app-card-rating">
             <span>${app.rating ? app.rating.toFixed(1) : '4.8'}</span>
             <span class="star-glyph">★</span>
-            <span style="margin-left: 4px; color: #80868b;">(${app.reviewCount || 1000})</span>
+            <span style="margin-left: 4px; color: #80868b;">(${app.reviewCount ? app.reviewCount.toLocaleString() : '0'})</span>
           </span>
         </div>
       </article>
@@ -990,12 +1027,12 @@ export class DevStoreApp {
                 <span>${app.rating ? app.rating.toFixed(1) : '4.8'}</span>
                 <span class="star-glyph">★</span>
               </span>
-              <span class="metric-lbl">${(app.reviewCount || 1000).toLocaleString()} reviews</span>
+              <span class="metric-lbl">${app.reviewCount ? `${app.reviewCount.toLocaleString()} reviews` : 'Community rating'}</span>
             </div>
             <div class="metric-divider" aria-hidden="true"></div>
             <div class="metric-item">
-              <span class="metric-val">${app.downloads ? '50K+' : '10K+'}</span>
-              <span class="metric-lbl">Downloads</span>
+              <span class="metric-val">${app.hasVerifiedPackage ? 'Verified' : 'Showcase'}</span>
+              <span class="metric-lbl">${app.hasVerifiedPackage ? 'Verified Package' : 'Catalog Showcase'}</span>
             </div>
             <div class="metric-divider" aria-hidden="true"></div>
             <div class="metric-item">
@@ -1537,6 +1574,11 @@ export class DevStoreApp {
   }
 
   openReviewModal(appId) {
+    if (!this.user) {
+      this.notifications.notify('Please sign in to rate and review applications.', 'warning');
+      this.openSignInModal('signin');
+      return;
+    }
     const app = this.searchEngine.getAppById(appId);
     if (!app || !this.dom.reviewModal) return;
 
@@ -1586,27 +1628,47 @@ export class DevStoreApp {
 
     document.getElementById('review-close-x')?.addEventListener('click', close);
     document.getElementById('review-cancel-btn')?.addEventListener('click', close);
-    document.getElementById('review-submit-btn')?.addEventListener('click', () => {
-      const text = document.getElementById('review-comment-input').value.trim();
+    document.getElementById('review-submit-btn')?.addEventListener('click', async () => {
+      const text = document.getElementById('review-comment-input')?.value.trim();
       if (!text) {
         this.notifications.notify('Please enter your review comment before posting.', 'warning');
         return;
       }
-      const newReview = {
-        id: `rev-user-${Date.now()}`,
-        author: this.user ? this.user.name : 'Community User',
-        avatar: this.user ? this.user.avatarBg : '#01875f',
-        rating: selectedRating,
-        date: 'Recent',
-        device: 'Desktop',
-        helpfulCount: 0,
-        comment: text
-      };
-      if (!app.reviews) app.reviews = [];
-      app.reviews.unshift(newReview);
-      close();
-      this.notifications.notify('Your review has been posted!', 'success');
-      this.renderDetailView(appId);
+      if (this.backend && this.backend.isConfigured) {
+        try {
+          await this.backend.submitReview({
+            appId,
+            rating: selectedRating,
+            comment: text,
+            device: 'Desktop'
+          });
+          this.notifications.notify('Your review has been published!', 'success');
+          const remoteReviews = await this.backend.fetchAppReviews(appId);
+          if (remoteReviews && remoteReviews.length > 0) {
+            app.reviews = remoteReviews;
+          }
+          close();
+          this.renderDetailView(appId);
+        } catch (err) {
+          this.notifications.notify(`Failed to post review: ${err.message}`, 'error');
+        }
+      } else {
+        const newReview = {
+          id: `rev-user-${Date.now()}`,
+          author: this.user ? this.user.name : 'Community User',
+          avatar: this.user ? this.user.avatarBg : '#01875f',
+          rating: selectedRating,
+          date: 'Recent',
+          device: 'Desktop',
+          helpfulCount: 0,
+          comment: text
+        };
+        if (!app.reviews) app.reviews = [];
+        app.reviews.unshift(newReview);
+        close();
+        this.notifications.notify('Your review has been posted!', 'success');
+        this.renderDetailView(appId);
+      }
     });
   }
 
@@ -1618,14 +1680,30 @@ export class DevStoreApp {
     this.notifications.notify(`Link copied to clipboard: ${url}`, 'info');
   }
 
-  toggleWishlist(appId) {
+  async toggleWishlist(appId) {
     if (!this.user) {
-      this.openSignInModal();
+      this.notifications.notify('Please sign in to save apps to your wishlist.', 'warning');
+      this.openSignInModal('signin');
       return;
+    }
+    const btn = document.getElementById('detail-wishlist-btn');
+    if (this.backend && this.backend.isConfigured) {
+      try {
+        const isAdded = await this.backend.toggleFavorite(appId);
+        if (isAdded) {
+          if (btn) btn.innerHTML = `${ICONS.checkShield} <span>In wishlist</span>`;
+          this.notifications.notify('Saved to your wishlist!', 'success');
+        } else {
+          if (btn) btn.innerHTML = `${ICONS.playPass} <span>Add to wishlist</span>`;
+          this.notifications.notify('Removed from your wishlist.', 'info');
+        }
+        return;
+      } catch (err) {
+        console.warn('Backend toggleFavorite error:', err);
+      }
     }
     if (!this.user.wishlist) this.user.wishlist = [];
     const idx = this.user.wishlist.indexOf(appId);
-    const btn = document.getElementById('detail-wishlist-btn');
     if (idx > -1) {
       this.user.wishlist.splice(idx, 1);
       if (btn) btn.innerHTML = `${ICONS.playPass} <span>Add to wishlist</span>`;
@@ -1646,16 +1724,16 @@ export class DevStoreApp {
     this.startInstallSimulation(appId);
   }
 
-  // --------------------------------------------------------------------------
-  // Google Play Profile Popover & User Authentication (Truthful Demo Profile)
+  // ----------------  // Google Play Profile Popover & User Authentication (Genuine Supabase Account)
   // --------------------------------------------------------------------------
   renderUserAvatar() {
     if (!this.dom.userAvatarBtn) return;
     if (this.user) {
       this.dom.userAvatarBtn.classList.add('signed-in');
       this.dom.userAvatarBtn.style.background = this.user.avatarBg || 'linear-gradient(135deg, #01875f 0%, #34a853 100%)';
-      this.dom.userAvatarBtn.innerHTML = `<span>${this.escapeHtml(this.user.initial || (this.user.name ? this.user.name[0] : 'A'))}</span>`;
-      this.dom.userAvatarBtn.setAttribute('aria-label', `DevStore Demo Profile: ${this.user.name} (${this.user.email})`);
+      const initial = this.escapeHtml(this.user.initial || (this.user.name ? this.user.name[0] : (this.user.email ? this.user.email[0] : 'U'))).toUpperCase();
+      this.dom.userAvatarBtn.innerHTML = `<span>${initial}</span>`;
+      this.dom.userAvatarBtn.setAttribute('aria-label', `DevStore Account: ${this.user.name || this.user.email}`);
     } else {
       this.dom.userAvatarBtn.classList.remove('signed-in');
       this.dom.userAvatarBtn.style.background = '';
@@ -1695,8 +1773,10 @@ export class DevStoreApp {
 
   renderProfilePopover() {
     if (!this.dom.profilePopover || !this.user) return;
-    const initial = this.escapeHtml(this.user.initial || (this.user.name ? this.user.name[0] : 'A'));
+    const initial = this.escapeHtml(this.user.initial || (this.user.name ? this.user.name[0] : (this.user.email ? this.user.email[0] : 'U'))).toUpperCase();
     const appsCount = this.user.installedApps ? this.user.installedApps.length : 0;
+    const roleLabel = this.user.role === 'admin' ? 'Administrator' : this.user.role === 'developer' ? 'Verified Developer' : 'Community Member';
+    const roleBadgeColor = this.user.role === 'admin' ? 'background:#fee2e2; color:#b91c1c;' : this.user.role === 'developer' ? 'background:#e0f2fe; color:#0369a1;' : 'background:#e8f0fe; color:#1a73e8;';
 
     this.dom.profilePopover.innerHTML = `
       <div class="popover-header-row">
@@ -1711,12 +1791,12 @@ export class DevStoreApp {
           <div class="popover-avatar-large" style="background:${this.user.avatarBg || 'linear-gradient(135deg, #01875f 0%, #34a853 100%)'}">
             ${initial}
           </div>
-          <div class="demo-profile-badge" title="Demo profile - unverified">
-            Demo &bull; Unverified
+          <div class="demo-profile-badge" style="${roleBadgeColor}" title="${roleLabel}">
+            ${roleLabel}
           </div>
         </div>
-        <div class="popover-user-name">${this.escapeHtml(this.user.name)}</div>
-        <div class="popover-user-email">${this.escapeHtml(this.user.email)} (Demo Account)</div>
+        <div class="popover-user-name">${this.escapeHtml(this.user.name || this.user.email.split('@')[0])}</div>
+        <div class="popover-user-email">${this.escapeHtml(this.user.email)}</div>
         <button class="popover-manage-account-btn" id="popover-manage-account-cta">
           Manage your DevStore Account
         </button>
@@ -1825,8 +1905,8 @@ export class DevStoreApp {
 
     document.getElementById('popover-manage-account-cta')?.addEventListener('click', () => {
       this.notifications.showDialog({
-        title: 'DevStore User Profile',
-        message: `Profile Name: ${this.user.name}\nEmail: ${this.user.email}\nRole: ${this.user.role || 'user'}\nStatus: ${this.user.isDemo ? 'Local Demo (Unverified)' : 'Verified Supabase Account'}\n\nAll permissions and role authorizations are verified on the PostgreSQL backend.`
+        title: 'DevStore User Account',
+        message: `Account Name: ${this.user.name || 'User'}\nEmail: ${this.user.email}\nRole: ${roleLabel}\nStatus: Verified Supabase Account\n\nAll permissions and role authorizations are verified on the PostgreSQL backend.`
       });
     });
 
@@ -1853,7 +1933,7 @@ export class DevStoreApp {
     });
 
     document.getElementById('popover-item-offers')?.addEventListener('click', () => {
-      this.notifications.notify('DevStore Offers: 2 community software packages available for preview in this catalog.', 'info');
+      this.notifications.notify('DevStore Offers: Open source showcase applications available in this catalog.', 'info');
     });
 
     document.getElementById('popover-item-pass')?.addEventListener('click', () => {
@@ -1866,7 +1946,7 @@ export class DevStoreApp {
     document.getElementById('popover-item-settings')?.addEventListener('click', () => {
       this.notifications.showDialog({
         title: 'DevStore Settings',
-        message: 'Client Settings: Static catalog mode active. Automatic background downloads are disabled to protect system integrity.'
+        message: 'Client Settings: Verified Supabase backend mode active.'
       });
     });
 
@@ -1874,8 +1954,8 @@ export class DevStoreApp {
       this.showHelpInfo();
     });
 
-    document.getElementById('popover-item-signout')?.addEventListener('click', () => {
-      this.handleSignOut();
+    document.getElementById('popover-item-signout')?.addEventListener('click', async () => {
+      await this.handleSignOut();
     });
 
     document.getElementById('popover-link-privacy')?.addEventListener('click', (e) => {
@@ -1890,13 +1970,14 @@ export class DevStoreApp {
   }
 
   // --------------------------------------------------------------------------
-  // Accessible Profile Selection Modal Dialog (Replaces prompt/alerts)
+  // Accessible Profile Selection Modal Dialog (Genuine Supabase Authentication)
   // --------------------------------------------------------------------------
   openSignInModal(initialTab = 'signin') {
     this.closeProfilePopover();
     if (!this.dom.signinModal) return;
 
     const isConfigured = Boolean(this.backend && this.backend.isConfigured);
+    const isConnected = Boolean(this.backend && this.backend.isConnected);
 
     this.dom.signinModal.innerHTML = `
       <div class="google-signin-dialog" id="signin-dialog" role="dialog" aria-modal="true" aria-labelledby="signin-heading">
@@ -1913,31 +1994,31 @@ export class DevStoreApp {
         </div>
 
         <h2 class="signin-heading" id="signin-heading">DevStore Account</h2>
-        <p class="signin-subheading">Sign in with Supabase or choose a demo profile</p>
+        <p class="signin-subheading">Sign in or create your DevStore account</p>
 
         <!-- Backend connection status banner -->
-        <div class="backend-status-banner ${isConfigured ? 'configured' : 'unconfigured'}">
-          <span>${isConfigured ? '✔ Supabase backend connected' : 'ℹ Supabase not configured &bull; Local demo active'}</span>
+        <div class="backend-status-banner ${isConnected ? 'configured' : isConfigured ? 'configured' : 'unconfigured'}" id="auth-backend-status">
+          <span>${isConnected ? '✔ Supabase backend connected' : isConfigured ? '✔ Supabase backend configured' : '⚠ Supabase not configured'}</span>
         </div>
 
         <!-- Navigation Tabs -->
         <div class="signin-tabs-nav">
           <button type="button" class="signin-tab-btn ${initialTab === 'signin' ? 'active' : ''}" id="tab-btn-signin" data-tab="signin">Sign In</button>
           <button type="button" class="signin-tab-btn ${initialTab === 'register' ? 'active' : ''}" id="tab-btn-register" data-tab="register">Register</button>
-          <button type="button" class="signin-tab-btn ${initialTab === 'demo' ? 'active' : ''}" id="tab-btn-demo" data-tab="demo">Quick Demo</button>
+          <button type="button" class="signin-tab-btn ${initialTab === 'forgot' ? 'active' : ''}" id="tab-btn-forgot" data-tab="forgot">Forgot Password</button>
         </div>
 
         <!-- TAB 1: Sign In -->
         <div id="signin-tab-content-signin" style="display: ${initialTab === 'signin' ? 'block' : 'none'};">
           <div class="signin-field-group">
             <label class="signin-label" for="signin-email-input">Email address</label>
-            <input type="email" id="signin-email-input" class="signin-outlined-input" placeholder="user@devstore.org" autocomplete="email" />
+            <input type="email" id="signin-email-input" class="signin-outlined-input" placeholder="user@example.com" autocomplete="email" />
           </div>
           <div class="signin-field-group" style="margin-top: 12px;">
             <label class="signin-label" for="signin-password-input">Password</label>
-            <input type="password" id="signin-password-input" class="signin-outlined-input" placeholder="Your password (leave blank for demo)" autocomplete="current-password" />
+            <input type="password" id="signin-password-input" class="signin-outlined-input" placeholder="••••••••" autocomplete="current-password" />
             <div style="display:flex; justify-content:space-between; margin-top:6px;">
-              <button type="button" class="signin-helper-link" id="signin-forgot-btn">Demo accounts guide</button>
+              <button type="button" class="signin-helper-link" id="signin-forgot-btn">Forgot password?</button>
               <button type="button" class="signin-helper-link" id="signin-magic-btn">Send Magic Link</button>
             </div>
           </div>
@@ -1955,46 +2036,38 @@ export class DevStoreApp {
           </div>
           <div class="signin-field-group" style="margin-top: 12px;">
             <label class="signin-label" for="register-email-input">Email address</label>
-            <input type="email" id="register-email-input" class="signin-outlined-input" placeholder="ada@devstore.org" />
+            <input type="email" id="register-email-input" class="signin-outlined-input" placeholder="ada@example.com" />
           </div>
           <div class="signin-field-group" style="margin-top: 12px;">
             <label class="signin-label" for="register-password-input">Password (min 6 characters)</label>
             <input type="password" id="register-password-input" class="signin-outlined-input" placeholder="••••••••" />
           </div>
+          <p style="font-size:12px; color:#5f6368; margin-top:8px; line-height:1.4;">
+            By registering, you agree to our terms. An email confirmation link may be sent to verify your address.
+          </p>
           <div class="signin-actions-row" style="margin-top: 18px;">
             <button type="button" class="signin-create-btn" id="register-back-to-signin">Back to Sign in</button>
             <button type="button" class="signin-next-btn" id="register-submit-btn">Create account</button>
           </div>
         </div>
 
-        <!-- TAB 3: Quick Demo Accounts -->
-        <div id="signin-tab-content-demo" style="display: ${initialTab === 'demo' ? 'block' : 'none'};">
-          <div class="signin-demo-accounts">
-            <div class="demo-accounts-title">Quick demo profiles (1-click)</div>
-            ${DEMO_ACCOUNTS.map((acc, idx) => `
-              <div class="demo-account-item" data-account-idx="${idx}" tabindex="0" role="button">
-                <div class="demo-account-avatar" style="background:${acc.avatarBg}">
-                  ${acc.initial}
-                </div>
-                <div class="demo-account-info">
-                  <span class="demo-account-name">${this.escapeHtml(acc.name)}</span>
-                  <span class="demo-account-email">${this.escapeHtml(acc.email)}</span>
-                </div>
-              </div>
-            `).join('')}
+        <!-- TAB 3: Forgot Password -->
+        <div id="signin-tab-content-forgot" style="display: ${initialTab === 'forgot' ? 'block' : 'none'};">
+          <p style="font-size:13px; color:#5f6368; margin-bottom:12px; line-height:1.4;">
+            Enter your account email address. We will send you a secure link to reset your password.
+          </p>
+          <div class="signin-field-group">
+            <label class="signin-label" for="forgot-email-input">Email address</label>
+            <input type="email" id="forgot-email-input" class="signin-outlined-input" placeholder="user@example.com" />
           </div>
-
-          <!-- Inline Create Account Form Container -->
-          <div id="signin-create-form" style="display:none; margin: 12px 0; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dadce0;">
-            <label class="signin-label" for="signin-create-name" style="font-size:12px; font-weight:600; color:#3c4043; display:block; margin-bottom:4px;">Full Name</label>
-            <input type="text" id="signin-create-name" class="signin-outlined-input" placeholder="e.g. Linus Torvalds" style="margin-bottom:8px;" />
-            <button type="button" class="detail-install-btn" id="signin-confirm-create-btn" style="width:100%; padding:8px;">Create Demo Profile</button>
+          <div class="signin-actions-row" style="margin-top: 18px;">
+            <button type="button" class="signin-create-btn" id="forgot-back-to-signin">Back to Sign in</button>
+            <button type="button" class="signin-next-btn" id="forgot-submit-btn">Send Reset Link</button>
           </div>
-          <button type="button" class="signin-helper-link" id="demo-show-custom-btn" style="width:100%; text-align:center; margin-top:8px;">+ Custom demo profile</button>
         </div>
 
         <p class="signin-guest-note">
-          Notice: Profiles in DevStore are local demonstrations and do not verify remote emails or transmit credentials. <a href="#learn-more" id="signin-learn-more">Learn more</a>
+          DevStore uses secure authentication powered by Supabase with Row Level Security (RLS). <a href="#learn-more" id="signin-learn-more">Security info</a>
         </p>
       </div>
     `;
@@ -2002,20 +2075,36 @@ export class DevStoreApp {
     this.dom.signinModal.classList.add('open');
     this.modalManager.registerOpen('signin-modal', this.dom.signinModal, () => this.closeSignInModal());
 
+    // Asynchronously update connection status if not verified yet
+    if (this.backend && this.backend.isConfigured && !this.backend.isConnected) {
+      this.backend.checkConnection().then(res => {
+        const statusEl = document.getElementById('auth-backend-status');
+        if (statusEl) {
+          if (res.connected) {
+            statusEl.className = 'backend-status-banner configured';
+            statusEl.innerHTML = '<span>✔ Supabase backend connected</span>';
+          } else {
+            statusEl.className = 'backend-status-banner unconfigured';
+            statusEl.innerHTML = `<span>⚠ Supabase connection failed: ${this.escapeHtml(res.error || 'Network error')}</span>`;
+          }
+        }
+      });
+    }
+
     // Close
     document.getElementById('signin-close-x')?.addEventListener('click', () => this.closeSignInModal());
 
     // Tab switching
     const tabSignin = document.getElementById('tab-btn-signin');
     const tabRegister = document.getElementById('tab-btn-register');
-    const tabDemo = document.getElementById('tab-btn-demo');
+    const tabForgot = document.getElementById('tab-btn-forgot');
     const contentSignin = document.getElementById('signin-tab-content-signin');
     const contentRegister = document.getElementById('signin-tab-content-register');
-    const contentDemo = document.getElementById('signin-tab-content-demo');
+    const contentForgot = document.getElementById('signin-tab-content-forgot');
 
     const switchTab = (tab) => {
-      [tabSignin, tabRegister, tabDemo].forEach(b => b?.classList.remove('active'));
-      [contentSignin, contentRegister, contentDemo].forEach(c => { if (c) c.style.display = 'none'; });
+      [tabSignin, tabRegister, tabForgot].forEach(b => b?.classList.remove('active'));
+      [contentSignin, contentRegister, contentForgot].forEach(c => { if (c) c.style.display = 'none'; });
 
       if (tab === 'signin') {
         tabSignin?.classList.add('active');
@@ -2023,33 +2112,19 @@ export class DevStoreApp {
       } else if (tab === 'register') {
         tabRegister?.classList.add('active');
         if (contentRegister) contentRegister.style.display = 'block';
-      } else if (tab === 'demo') {
-        tabDemo?.classList.add('active');
-        if (contentDemo) contentDemo.style.display = 'block';
+      } else if (tab === 'forgot') {
+        tabForgot?.classList.add('active');
+        if (contentForgot) contentForgot.style.display = 'block';
       }
     };
 
     tabSignin?.addEventListener('click', () => switchTab('signin'));
     tabRegister?.addEventListener('click', () => switchTab('register'));
-    tabDemo?.addEventListener('click', () => switchTab('demo'));
+    tabForgot?.addEventListener('click', () => switchTab('forgot'));
     document.getElementById('register-back-to-signin')?.addEventListener('click', () => switchTab('signin'));
-
-    // Demo account item clicks
-    const demoItems = this.dom.signinModal.querySelectorAll('.demo-account-item');
-    demoItems.forEach((el) => {
-      el.addEventListener('click', () => {
-        const idx = parseInt(el.getAttribute('data-account-idx'), 10);
-        if (DEMO_ACCOUNTS[idx]) {
-          this.handleSignIn(DEMO_ACCOUNTS[idx]);
-        }
-      });
-      el.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          el.click();
-        }
-      });
-    });
+    document.getElementById('forgot-back-to-signin')?.addEventListener('click', () => switchTab('signin'));
+    document.getElementById('signin-create-btn')?.addEventListener('click', () => switchTab('register'));
+    document.getElementById('signin-forgot-btn')?.addEventListener('click', () => switchTab('forgot'));
 
     const nextBtn = document.getElementById('signin-next-btn');
     const emailInput = document.getElementById('signin-email-input');
@@ -2058,9 +2133,10 @@ export class DevStoreApp {
     const submitLogin = async () => {
       const email = emailInput ? emailInput.value.trim() : '';
       const password = passwordInput ? passwordInput.value : '';
-      if (!email) {
-        this.notifications.notify('Please enter an email address or select a demo profile above.', 'warning');
-        emailInput?.focus();
+      if (!email || !password) {
+        this.notifications.notify('Please enter both your email address and password.', 'warning');
+        if (!email) emailInput?.focus();
+        else passwordInput?.focus();
         return;
       }
       await this.handleSignIn(email, password);
@@ -2096,7 +2172,7 @@ export class DevStoreApp {
           this.notifications.notify(`Magic link error: ${err.message}`, 'error');
         }
       } else {
-        this.notifications.notify(`Magic link requested for ${email} (Offline demo mode).`, 'info');
+        this.notifications.notify('Supabase authentication backend is not configured.', 'error');
       }
     });
 
@@ -2106,85 +2182,55 @@ export class DevStoreApp {
       const email = document.getElementById('register-email-input')?.value.trim();
       const password = document.getElementById('register-password-input')?.value;
 
-      if (!email || !password) {
-        this.notifications.notify('Please enter email and password.', 'warning');
+      if (!name || !email || !password) {
+        this.notifications.notify('Please fill in your name, email address, and password.', 'warning');
+        return;
+      }
+
+      if (password.length < 6) {
+        this.notifications.notify('Password must be at least 6 characters long.', 'warning');
         return;
       }
 
       if (this.backend && this.backend.isConfigured) {
         try {
-          await this.backend.signUp(email, password, name || email.split('@')[0]);
-          this.notifications.notify('Account created! Please verify your email address if required.', 'success');
+          await this.backend.signUp(email, password, name);
+          this.notifications.notify('Registration submitted! If email confirmation is enabled, check your inbox to verify your account.', 'success');
           switchTab('signin');
+          if (emailInput) emailInput.value = email;
         } catch (err) {
           this.notifications.notify(`Registration error: ${err.message}`, 'error');
         }
       } else {
-        this.handleSignIn({
-          name: name || 'New User',
-          email: email,
-          initial: (name || email)[0].toUpperCase(),
-          avatarBg: 'linear-gradient(135deg, #188038 0%, #34a853 100%)',
-          installedApps: [],
-          passActive: true,
-          role: 'user',
-          isDemo: true,
-          isVerified: false
-        });
+        this.notifications.notify('Supabase backend is not configured.', 'error');
       }
     });
 
-    // Inline custom demo create
-    const createForm = document.getElementById('signin-create-form');
-    const createBtn = document.getElementById('signin-create-btn');
-    const customDemoBtn = document.getElementById('demo-show-custom-btn');
-    const createNameInput = document.getElementById('signin-create-name');
-    const confirmCreateBtn = document.getElementById('signin-confirm-create-btn');
-
-    const toggleCustomCreate = () => {
-      switchTab('demo');
-      if (createForm) {
-        createForm.style.display = createForm.style.display === 'none' ? 'block' : 'none';
-        if (createForm.style.display === 'block') {
-          createNameInput?.focus();
-        }
-      }
-    };
-
-    createBtn?.addEventListener('click', toggleCustomCreate);
-    customDemoBtn?.addEventListener('click', toggleCustomCreate);
-
-    confirmCreateBtn?.addEventListener('click', () => {
-      const name = createNameInput ? createNameInput.value.trim() : '';
-      if (!name) {
-        this.notifications.notify('Please enter your name for the demo profile.', 'warning');
-        createNameInput?.focus();
+    // Password Reset Link
+    document.getElementById('forgot-submit-btn')?.addEventListener('click', async () => {
+      const email = document.getElementById('forgot-email-input')?.value.trim();
+      if (!email) {
+        this.notifications.notify('Please enter your email address.', 'warning');
         return;
       }
-      const email = `${name.toLowerCase().replace(/\s+/g, '.')}@devstore.org`;
-      this.handleSignIn({
-        name: name,
-        email: email,
-        initial: name[0].toUpperCase(),
-        avatarBg: 'linear-gradient(135deg, #188038 0%, #34a853 100%)',
-        installedApps: ['org.devstore.chess'],
-        passActive: true,
-        role: 'user',
-        isDemo: true,
-        isVerified: false
-      });
-    });
-
-    document.getElementById('signin-forgot-btn')?.addEventListener('click', () => {
-      this.notifications.notify('Select any 1-click quick demo profile above to explore user library features.', 'info');
-      switchTab('demo');
+      if (this.backend && this.backend.isConfigured) {
+        try {
+          await this.backend.resetPassword(email);
+          this.notifications.notify(`Password recovery link sent to ${email}! Check your inbox.`, 'success');
+          switchTab('signin');
+        } catch (err) {
+          this.notifications.notify(`Password reset error: ${err.message}`, 'error');
+        }
+      } else {
+        this.notifications.notify('Supabase backend is not configured.', 'error');
+      }
     });
 
     document.getElementById('signin-learn-more')?.addEventListener('click', (e) => {
       e.preventDefault();
       this.notifications.showDialog({
         title: 'DevStore Authentication & Security',
-        message: 'DevStore supports real Supabase authentication with Row Level Security (RLS) and PostgreSQL triggers. In unconfigured environments, DevStore operates in an offline demonstration sandbox.'
+        message: 'DevStore uses real Supabase authentication with Row Level Security (RLS) policies and PostgreSQL triggers to protect user profiles, developer applications, software version submissions, and moderation reviews.'
       });
     });
 
@@ -2197,63 +2243,133 @@ export class DevStoreApp {
     this.modalManager.registerClose('signin-modal');
   }
 
-  async handleSignIn(accountOrEmail, password = null) {
-    if (typeof accountOrEmail === 'object' && accountOrEmail !== null) {
-      this.user = {
-        ...accountOrEmail,
-        isDemo: accountOrEmail.isDemo !== false,
-        isVerified: accountOrEmail.isVerified === true,
-        role: accountOrEmail.role || 'user'
-      };
-    } else {
-      const email = String(accountOrEmail);
-      if (password && this.backend && this.backend.isConfigured) {
-        try {
-          await this.backend.signInWithPassword(email, password);
-          const profile = await this.backend.getCurrentProfile();
-          if (profile) {
-            this.user = profile;
-          }
-          this.renderUserAvatar();
-          this.closeSignInModal();
-          this.notifications.notify(`Signed in as ${this.user.name} (${this.user.role})`, 'success');
-          return;
-        } catch (err) {
-          this.notifications.notify(`Authentication error: ${err.message}`, 'error');
-          return;
-        }
+  openPasswordRecoveryModal() {
+    this.closeSignInModal();
+    this.closeProfilePopover();
+    if (!this.dom.signinModal) return;
+
+    this.dom.signinModal.innerHTML = `
+      <div class="google-signin-dialog" id="recovery-dialog" role="dialog" aria-modal="true" aria-labelledby="recovery-heading">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+          <div class="signin-logo-wrap">
+            <div class="brand-logo-icon" style="width:28px; height:28px;">
+              ${ICONS.devstore}
+            </div>
+            <span class="brand-title" style="font-size:18px;">DevStore</span>
+          </div>
+          <button class="popover-close-btn" id="recovery-close-x" aria-label="Close recovery dialog">
+            ${ICONS.close}
+          </button>
+        </div>
+
+        <h2 class="signin-heading" id="recovery-heading">Set New Password</h2>
+        <p class="signin-subheading">Choose a new password for your DevStore account</p>
+
+        <div class="signin-field-group">
+          <label class="signin-label" for="recovery-password-input">New Password (min 6 characters)</label>
+          <input type="password" id="recovery-password-input" class="signin-outlined-input" placeholder="••••••••" autocomplete="new-password" />
+        </div>
+
+        <div class="signin-field-group" style="margin-top: 12px;">
+          <label class="signin-label" for="recovery-confirm-input">Confirm New Password</label>
+          <input type="password" id="recovery-confirm-input" class="signin-outlined-input" placeholder="••••••••" autocomplete="new-password" />
+        </div>
+
+        <div class="signin-actions-row" style="margin-top: 20px;">
+          <button type="button" class="signin-next-btn" id="recovery-save-btn" style="width:100%;">Update Password</button>
+        </div>
+      </div>
+    `;
+
+    this.dom.signinModal.classList.add('open');
+    this.modalManager.registerOpen('signin-modal', this.dom.signinModal, () => this.closeSignInModal());
+
+    document.getElementById('recovery-close-x')?.addEventListener('click', () => this.closeSignInModal());
+
+    document.getElementById('recovery-save-btn')?.addEventListener('click', async () => {
+      const pass = document.getElementById('recovery-password-input')?.value;
+      const confirm = document.getElementById('recovery-confirm-input')?.value;
+
+      if (!pass || pass.length < 6) {
+        this.notifications.notify('Password must be at least 6 characters long.', 'warning');
+        return;
+      }
+      if (pass !== confirm) {
+        this.notifications.notify('Passwords do not match. Please re-enter.', 'warning');
+        return;
       }
 
-      const matched = DEMO_ACCOUNTS.find(a => a.email.toLowerCase() === email.toLowerCase());
-      if (matched) {
-        this.user = { ...matched, isDemo: true, isVerified: false, role: 'user' };
+      if (this.backend && this.backend.isConfigured) {
+        try {
+          await this.backend.updatePassword(pass);
+          this.notifications.notify('Password updated successfully! You can now sign in.', 'success');
+          // Clean hash from URL
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+          this.closeSignInModal();
+          this.openSignInModal('signin');
+        } catch (err) {
+          this.notifications.notify(`Password update failed: ${err.message}`, 'error');
+        }
       } else {
-        const localPart = email.split('@')[0] || 'User';
-        const formattedName = localPart.split('.')[0];
-        const capName = formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
-        this.user = {
-          name: capName,
-          email: email.includes('@') ? email : `${email}@devstore.org`,
-          initial: capName[0] || 'U',
-          avatarBg: 'linear-gradient(135deg, #01875f 0%, #34a853 100%)',
-          installedApps: ['org.devstore.chess', 'org.devstore.calculator'],
-          passActive: true,
-          role: 'user',
-          isDemo: true,
-          isVerified: false
-        };
+        this.notifications.notify('Supabase backend is not configured.', 'error');
       }
+    });
+  }
+
+  async handleSignIn(email, password) {
+    if (!email || !password) {
+      this.notifications.notify('Please enter both your email address and password.', 'warning');
+      return;
+    }
+
+    if (!this.backend || !this.backend.isConfigured) {
+      this.notifications.notify('Supabase authentication backend is not configured.', 'error');
+      return;
     }
 
     try {
-      localStorage.setItem('devstore_user', JSON.stringify(this.user));
-    } catch (e) {
-      console.warn('Failed to persist user to localStorage:', e);
+      await this.backend.signInWithPassword(email, password);
+      const profile = await this.backend.getCurrentProfile();
+      if (profile) {
+        this.user = profile;
+        try {
+          localStorage.setItem('devstore_user', JSON.stringify(this.user));
+        } catch (e) {}
+      }
+      this.renderUserAvatar();
+      this.closeSignInModal();
+      const roleText = this.user?.role === 'admin' ? ' (Admin)' : this.user?.role === 'developer' ? ' (Developer)' : '';
+      this.notifications.notify(`Signed in as ${this.user?.name || email}${roleText}`, 'success');
+    } catch (err) {
+      let msg = err.message || 'Authentication error';
+      if (msg.toLowerCase().includes('invalid login credentials')) {
+        msg = 'Invalid email or password. Please verify your credentials.';
+      } else if (msg.toLowerCase().includes('email not confirmed')) {
+        msg = 'Your email address is not yet confirmed. Please check your inbox for the confirmation link.';
+      }
+      this.notifications.notify(`Authentication failed: ${msg}`, 'error');
     }
+  }
 
+  async handleSignOut() {
+    if (this.backend && this.backend.isConfigured) {
+      try {
+        await this.backend.signOut();
+      } catch (err) {
+        console.warn('Backend sign out error:', err);
+      }
+    }
+    this.user = null;
+    try {
+      localStorage.removeItem('devstore_user');
+    } catch (e) {
+      console.warn('Failed to remove user from localStorage:', e);
+    }
+    this.closeProfilePopover();
     this.renderUserAvatar();
-    this.closeSignInModal();
-    this.notifications.notify(`Signed in as ${this.user.name} (Demo Profile)`, 'success');
+    this.notifications.notify('Signed out of DevStore.', 'info');
   }
 
   // --------------------------------------------------------------------------
@@ -3025,17 +3141,6 @@ export class DevStoreApp {
     this.modalManager.registerClose('admin-dashboard-modal');
   }
 
-  handleSignOut() {
-    this.user = null;
-    try {
-      localStorage.removeItem('devstore_user');
-    } catch (e) {
-      console.warn('Failed to remove user from localStorage:', e);
-    }
-    this.closeProfilePopover();
-    this.renderUserAvatar();
-    this.notifications.notify('Signed out of DevStore demo profile.', 'info');
-  }
 
   // --------------------------------------------------------------------------
   // Google Play "Manage apps & device" Modal Dialog (Truthful Demo Status)

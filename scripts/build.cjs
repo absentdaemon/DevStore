@@ -20,13 +20,24 @@ console.log('   DevStore Production Build & Asset Verification   ');
 console.log('====================================================\n');
 
 // 1. Resolve Environment Variables
-const supabaseUrl = process.env.SUPABASE_URL ||
-                    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-                    process.env.VITE_SUPABASE_URL;
+let supabaseUrl = process.env.SUPABASE_URL ||
+                  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+                  process.env.VITE_SUPABASE_URL;
 
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY ||
-                       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-                       process.env.VITE_SUPABASE_ANON_KEY;
+let supabaseAnonKey = process.env.SUPABASE_ANON_KEY ||
+                      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+                      process.env.VITE_SUPABASE_ANON_KEY;
+
+// If building locally and env vars are not set in shell, read existing local config.js
+if ((!supabaseUrl || !supabaseAnonKey) && fs.existsSync(configFilePath)) {
+  try {
+    const existingContent = fs.readFileSync(configFilePath, 'utf8');
+    const urlMatch = existingContent.match(/supabaseUrl:\s*["']([^"']+)["']/);
+    const keyMatch = existingContent.match(/supabaseAnonKey:\s*["']([^"']+)["']/);
+    if (urlMatch && !supabaseUrl) supabaseUrl = urlMatch[1];
+    if (keyMatch && !supabaseAnonKey) supabaseAnonKey = keyMatch[1];
+  } catch {}
+}
 
 // 2. Validate Presence (Never silently fall back to demo mode in production build)
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -44,12 +55,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // 3. Security Sanity Checks
-const trimmedUrl = supabaseUrl.trim();
+let trimmedUrl = supabaseUrl.trim();
 const trimmedKey = supabaseAnonKey.trim();
 
 if (!trimmedUrl.startsWith('https://') && !trimmedUrl.startsWith('http://localhost')) {
   console.error(`❌ SECURITY ERROR: SUPABASE_URL must begin with https:// (received: ${trimmedUrl})\n`);
   process.exit(1);
+}
+
+if (trimmedUrl.includes('jegapakrvudxtdppkqno')) {
+  console.warn('⚠️ CONFIGURATION WARNING: Detected typo in SUPABASE_URL: "jegapakrvudxtdppkqno" (xt).');
+  console.warn('Auto-correcting to canonical DevStore project reference "jegapakrvudtxdppkqno" (tx).');
+  console.warn('Please also update SUPABASE_URL in Vercel Project Settings for consistency.\n');
+  trimmedUrl = trimmedUrl.replace('jegapakrvudxtdppkqno', 'jegapakrvudtxdppkqno');
 }
 
 const lowerKey = trimmedKey.toLowerCase();

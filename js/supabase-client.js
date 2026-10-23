@@ -8,6 +8,7 @@ export class SupabaseBackendClient {
   constructor() {
     this.client = null;
     this.isConfigured = false;
+    this.isConnected = false;
     this.config = {
       maxPackageSizeBytes: 250 * 1024 * 1024, // 250 MB
       allowedPackageExtensions: ['.zip', '.apk', '.tar.gz', '.msi', '.exe']
@@ -28,9 +29,15 @@ export class SupabaseBackendClient {
       this.config.allowedPackageExtensions = globalConfig.allowedPackageExtensions;
     }
 
-    if (url && key && !url.includes('your-project-id') && typeof window.supabase !== 'undefined') {
+    let cleanUrl = url;
+    if (cleanUrl && cleanUrl.includes('jegapakrvudxtdppkqno')) {
+      console.warn('Auto-correcting known Supabase URL typo (xt -> tx)');
+      cleanUrl = cleanUrl.replace('jegapakrvudxtdppkqno', 'jegapakrvudtxdppkqno');
+    }
+
+    if (cleanUrl && key && !cleanUrl.includes('your-project-id') && typeof window.supabase !== 'undefined') {
       try {
-        this.client = window.supabase.createClient(url, key, {
+        this.client = window.supabase.createClient(cleanUrl, key, {
           auth: {
             persistSession: true,
             autoRefreshToken: true,
@@ -41,9 +48,40 @@ export class SupabaseBackendClient {
       } catch (err) {
         console.warn('Failed to initialize Supabase client:', err);
         this.isConfigured = false;
+        this.isConnected = false;
       }
     } else {
       this.isConfigured = false;
+      this.isConnected = false;
+    }
+  }
+
+  /**
+   * Performs an active network verification check against Supabase REST endpoint.
+   * Resolves false if DNS fails (e.g. ERR_NAME_NOT_RESOLVED), network error, or invalid credentials.
+   * @returns {Promise<{ connected: boolean, error?: string }>}
+   */
+  async checkConnection() {
+    if (!this.isConfigured || !this.client) {
+      this.isConnected = false;
+      return { connected: false, error: 'Supabase client not configured' };
+    }
+
+    try {
+      const { error } = await this.client
+        .from('applications')
+        .select('id')
+        .limit(1);
+
+      if (error && error.code !== 'PGRST116') {
+        this.isConnected = false;
+        return { connected: false, error: error.message || 'Database query error' };
+      }
+      this.isConnected = true;
+      return { connected: true };
+    } catch (err) {
+      this.isConnected = false;
+      return { connected: false, error: err.message || 'Network resolution failed' };
     }
   }
 
@@ -165,11 +203,13 @@ export class SupabaseBackendClient {
       throw new Error('Supabase backend is not configured. Please see supabase/README.md for setup instructions.');
     }
 
+    const redirectTarget = window.location.origin;
     const { data, error } = await this.client.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName }
+        data: { full_name: fullName },
+        emailRedirectTo: redirectTarget
       }
     });
 
@@ -218,6 +258,34 @@ export class SupabaseBackendClient {
 
     if (error) throw error;
     return data;
+  }
+
+  async updatePassword(newPassword) {
+    if (!this.isConfigured || !this.client) {
+      throw new Error('Supabase backend is not configured.');
+    }
+
+    const { data, error } = await this.client.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) throw error;
+    return data;
+  }
+
+  async fetchPublishedApplications() {
+    if (!this.isConfigured || !this.client) return [];
+    const { data, error } = await this.client
+      .from('applications')
+      .select('*, app_versions(*), reviews(rating, comment, helpful_count, created_at, profiles(full_name))')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Error fetching published applications:', error);
+      return [];
+    }
+    return data || [];
   }
 
   async signOut() {

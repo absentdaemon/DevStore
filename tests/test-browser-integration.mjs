@@ -332,22 +332,51 @@ try {
   console.log('  ✔ Missing binary handled truthfully: 404 reported, error toast displayed, 0 fake installs');
 
   // --------------------------------------------------------------------------
-  // Check 10: Profile Behavior & Demo Verification Notice
+  // Check 10: Genuine Auth State & Absence of Demo Fallbacks
   // --------------------------------------------------------------------------
-  console.log('\nTest 10: Demo Profile Separation & Unverified Identity Guard');
-  await cdp.evaluate(`window.devstore.openProfilePopover();`);
+  console.log('\nTest 10: Genuine Auth State & Absence of Demo Fallbacks');
+  const initialUser = await cdp.evaluate(`window.devstore.user`);
+  assert.strictEqual(initialUser, null, 'User should be null (unauthenticated) initially');
+
+  const avatarLabel = await cdp.evaluate(`document.getElementById('user-avatar-btn')?.getAttribute('aria-label')`);
+  assert.strictEqual(avatarLabel, 'Sign in to DevStore', 'Avatar button must indicate Sign in when unauthenticated');
+
+  // Verify that opening sign in modal shows genuine auth tabs (Sign In, Register, Forgot Password) and NO Quick Demo tab
+  await cdp.evaluate(`window.devstore.openSignInModal();`);
   await new Promise(r => setTimeout(r, 250));
 
-  const profileBadgeText = await cdp.evaluate(`
+  const hasDemoTab = await cdp.evaluate(`Boolean(document.getElementById('tab-btn-demo'))`);
+  assert.strictEqual(hasDemoTab, false, 'Quick Demo tab must be removed from production modal');
+
+  const hasRegisterTab = await cdp.evaluate(`Boolean(document.getElementById('tab-btn-register'))`);
+  assert.strictEqual(hasRegisterTab, true, 'Register tab must exist');
+
+  const hasForgotTab = await cdp.evaluate(`Boolean(document.getElementById('tab-btn-forgot'))`);
+  assert.strictEqual(hasForgotTab, true, 'Forgot password tab must exist');
+
+  // Simulate authenticated user and verify profile popover displays genuine role
+  await cdp.evaluate(`
+    window.devstore.user = {
+      name: 'Developer Alice',
+      email: 'alice@devstore.org',
+      role: 'developer',
+      installedApps: []
+    };
+    window.devstore.renderUserAvatar();
+    window.devstore.openProfilePopover();
+  `);
+  await new Promise(r => setTimeout(r, 250));
+
+  const profileRole = await cdp.evaluate(`
     document.querySelector('.demo-profile-badge')?.innerText || ''
   `);
-  assert.ok(profileBadgeText.includes('Demo') && profileBadgeText.includes('Unverified'), 'Profile popover must explicitly show Demo & Unverified badge');
+  assert.ok(profileRole.includes('Developer'), 'Profile popover must display genuine Verified Developer role');
 
   const fakeCheckmark = await cdp.evaluate(`
     document.querySelector('.popover-avatar-badge[title="Verified Account"]')
   `);
   assert.strictEqual(fakeCheckmark, null, 'Fake "Verified Account" checkmark must be removed');
-  console.log('  ✔ User profile is explicitly marked as unverified local demo');
+  console.log('  ✔ Genuine auth states and absence of demo fallbacks verified');
 
   // --------------------------------------------------------------------------
   // Check 11: Dialog Focus, Escape Dismissal & Focus Restoration
@@ -420,6 +449,11 @@ try {
 
 } catch (err) {
   console.error('\n❌ Test Suite Failed:', err);
+  if (cdp) {
+    console.error('Page errors:', cdp.pageErrors);
+    console.error('Console logs:', cdp.consoleLogs);
+    console.error('Network errors:', cdp.networkErrors);
+  }
   process.exitCode = 1;
 } finally {
   if (cdp) cdp.close();

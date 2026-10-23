@@ -44,16 +44,18 @@ console.log('\nTest 3: Profile & Authentication Controller in app.js');
 assert.ok(appJs.includes('renderUserAvatar'), 'renderUserAvatar method must exist');
 assert.ok(appJs.includes('toggleProfilePopover'), 'toggleProfilePopover method must exist');
 assert.ok(appJs.includes('openSignInModal'), 'openSignInModal method must exist');
+assert.ok(appJs.includes('openPasswordRecoveryModal'), 'openPasswordRecoveryModal method must exist');
 assert.ok(appJs.includes('handleSignIn'), 'handleSignIn method must exist');
 assert.ok(appJs.includes('handleSignOut'), 'handleSignOut method must exist');
 assert.ok(appJs.includes('openManageAppsModal'), 'openManageAppsModal method must exist');
 assert.ok(appJs.includes('uninstallApp'), 'uninstallApp method must exist');
-assert.ok(appJs.includes('DEFAULT_USER'), 'DEFAULT_USER profile must be defined');
-assert.ok(appJs.includes('DEMO_ACCOUNTS'), 'DEMO_ACCOUNTS list must be defined');
-console.log('  ✔ Controller methods and data structures confirmed in app.js');
+assert.ok(!appJs.includes('const DEFAULT_USER'), 'DEFAULT_USER demo account must be removed');
+assert.ok(!appJs.includes('const DEMO_ACCOUNTS'), 'DEMO_ACCOUNTS demo list must be removed');
+assert.ok(!appJs.includes('data-tab="demo"'), 'Quick Demo tab must be removed from production');
+console.log('  ✔ Controller methods and genuine auth structures confirmed in app.js');
 
 // 4. Simulate User Profile State Transitions
-console.log('\nTest 4: State Machine Simulation (Sign in, Install, Uninstall, Sign out)');
+console.log('\nTest 4: State Machine Simulation (Unauthenticated -> Sign In -> Manage Apps -> Sign Out)');
 let mockStorage = {};
 const mockLocalStorage = {
   getItem: (k) => mockStorage[k] || null,
@@ -61,20 +63,28 @@ const mockLocalStorage = {
   removeItem: (k) => { delete mockStorage[k]; }
 };
 
-const DEFAULT_USER = {
-  name: 'Alex Mercer',
-  email: 'alex.mercer@devstore.org',
-  initial: 'A',
+// Initial state: Unauthenticated
+let currentUser = null;
+assert.strictEqual(currentUser, null, 'User must be null by default in production');
+assert.strictEqual(mockLocalStorage.getItem('devstore_user'), null, 'No stored user initially');
+
+// Sign In as verified Supabase user
+const verifiedUser = {
+  id: 'usr_test_123',
+  name: 'DevStore User',
+  email: 'user@devstore.org',
+  role: 'developer',
+  initial: 'D',
   avatarBg: 'linear-gradient(135deg, #01875f 0%, #34a853 100%)',
-  installedApps: ['org.devstore.chess', 'org.devstore.terminal'],
+  installedApps: ['org.devstore.chess'],
   passActive: true
 };
 
-// Initial state
-let currentUser = { ...DEFAULT_USER };
+currentUser = { ...verifiedUser };
 mockLocalStorage.setItem('devstore_user', JSON.stringify(currentUser));
-assert.strictEqual(currentUser.name, 'Alex Mercer');
-assert.strictEqual(currentUser.installedApps.length, 2);
+assert.strictEqual(currentUser.name, 'DevStore User');
+assert.strictEqual(currentUser.role, 'developer');
+assert.strictEqual(currentUser.installedApps.length, 1);
 
 // Install app
 const newAppId = 'org.devstore.calculator';
@@ -82,37 +92,23 @@ if (!currentUser.installedApps.includes(newAppId)) {
   currentUser.installedApps.push(newAppId);
   mockLocalStorage.setItem('devstore_user', JSON.stringify(currentUser));
 }
-assert.strictEqual(currentUser.installedApps.length, 3, 'Installed apps should now be 3');
+assert.strictEqual(currentUser.installedApps.length, 2, 'Installed apps should now be 2');
 assert.ok(currentUser.installedApps.includes(newAppId), 'Calculator should be in library');
 
 // Uninstall app
-currentUser.installedApps = currentUser.installedApps.filter(id => id !== 'org.devstore.terminal');
+currentUser.installedApps = currentUser.installedApps.filter(id => id !== 'org.devstore.chess');
 mockLocalStorage.setItem('devstore_user', JSON.stringify(currentUser));
-assert.strictEqual(currentUser.installedApps.length, 2, 'Installed apps should now be 2');
-assert.ok(!currentUser.installedApps.includes('org.devstore.terminal'), 'Terminal should be removed');
+assert.strictEqual(currentUser.installedApps.length, 1, 'Installed apps should now be 1');
+assert.ok(!currentUser.installedApps.includes('org.devstore.chess'), 'Chess should be removed');
 
 // Sign out
 currentUser = null;
 mockLocalStorage.removeItem('devstore_user');
 assert.strictEqual(currentUser, null, 'User should be null after sign out');
 assert.strictEqual(mockLocalStorage.getItem('devstore_user'), null, 'Storage should be cleared');
-
-// Sign in as Sarah Connor
-const sarah = {
-  name: 'Sarah Connor',
-  email: 'sarah.c@devstore.org',
-  initial: 'S',
-  avatarBg: 'linear-gradient(135deg, #1a73e8 0%, #4285f4 100%)',
-  installedApps: ['org.devstore.calculator', 'org.devstore.weather'],
-  passActive: false
-};
-currentUser = { ...sarah };
-mockLocalStorage.setItem('devstore_user', JSON.stringify(currentUser));
-assert.strictEqual(currentUser.name, 'Sarah Connor');
-assert.strictEqual(currentUser.initial, 'S');
-assert.strictEqual(currentUser.installedApps.length, 2);
 console.log('  ✔ Authentication state machine and persistence verified');
 
 console.log('\n====================================================');
 console.log('   ALL PROFILE & AUTHENTICATION CHECKS PASSED (100%)');
 console.log('====================================================');
+
